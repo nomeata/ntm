@@ -41,9 +41,37 @@
         };
       });
 
-      checks = forAllSystems (system: {
-        package = self.packages.${system}.default;
-      });
+      checks = forAllSystems (
+        system:
+        {
+          package = self.packages.${system}.default;
+        }
+        // nixpkgs.lib.optionalAttrs (nixpkgs.lib.hasSuffix "-linux" system) {
+          # Baut die systemd-Unit einer Minimalkonfiguration – prüft also, dass
+          # das Modul samt serviceConfig durchläuft, ohne ein ganzes System zu
+          # bauen.
+          module =
+            (nixpkgs.lib.nixosSystem {
+              modules = [
+                self.nixosModules.default
+                {
+                  nixpkgs.hostPlatform = system;
+                  boot.loader.grub.enable = false;
+                  fileSystems."/" = {
+                    device = "/dev/null";
+                    fsType = "ext4";
+                  };
+                  system.stateVersion = "25.11";
+                  services.ntm = {
+                    enable = true;
+                    port = 8123;
+                    passwordFile = "/run/secrets/ntm-password";
+                  };
+                }
+              ];
+            }).config.systemd.units."ntm.service".unit;
+        }
+      );
 
       devShells = forAllSystems (
         system:
