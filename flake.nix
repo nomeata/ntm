@@ -37,6 +37,7 @@
         default = {
           type = "app";
           program = "${nixpkgs.lib.getExe self.packages.${system}.default}";
+          meta.description = "ntm starten";
         };
       });
 
@@ -61,7 +62,7 @@
           default = pkgs.mkShell {
             packages = [
               python
-              pkgs.nixfmt-rfc-style
+              pkgs.nixfmt
             ];
             shellHook = ''
               export PYTHONPATH="$PWD/src''${PYTHONPATH:+:$PYTHONPATH}"
@@ -72,6 +73,6 @@
         }
       );
 
-      formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixfmt-rfc-style);
+      formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixfmt);
     };
 }
