@@ -949,8 +949,11 @@ async function renderForm(id) {
 }
 
 function focusNext(container, current) {
+  // tabIndex -1 hält die Löschknöpfe der Chips draußen; auf eine
+  // Layout-Abfrage (offsetParent) verzichten wir bewusst – sie ist auch für
+  // position:fixed null und im Formular ist ohnehin alles sichtbar.
   const focusables = [...container.querySelectorAll("input, textarea, select, button")].filter(
-    (node) => !node.disabled && node.tabIndex !== -1 && node.offsetParent !== null,
+    (node) => !node.disabled && node.tabIndex !== -1 && !node.hidden,
   );
   const index = focusables.indexOf(current);
   const next = focusables[index + 1];
