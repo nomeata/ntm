@@ -128,8 +128,18 @@ async function api(path, options = {}) {
  * stopImmediatePropagation ab.
  */
 function attachTypeahead(input, { fetchItems, onPick, openOnFocus = true }) {
+  // Die Vorschlagsliste hängt an einem positionierten Container. Hat das
+  // Eingabefeld noch keinen – etwa weil es noch gar nicht im Dokument steht –,
+  // bekommt es hier einen.
+  let host = input.parentNode;
+  if (!host || !host.classList || !host.classList.contains("combo")) {
+    const wrapper = h("div", { class: "combo" });
+    if (host) host.replaceChild(wrapper, input);
+    wrapper.append(input);
+    host = wrapper;
+  }
   const list = h("div", { class: "suggest", role: "listbox", hidden: true });
-  input.parentNode.append(list);
+  host.append(list);
   input.setAttribute("autocomplete", "off");
   input.setAttribute("role", "combobox");
 
@@ -229,7 +239,7 @@ function attachTypeahead(input, { fetchItems, onPick, openOnFocus = true }) {
     }
   });
 
-  return { close, reload: load };
+  return { close, reload: load, root: host };
 }
 
 async function fetchTagSuggestions(query, exclude = []) {
@@ -782,7 +792,10 @@ async function renderForm(id) {
     if (ageIndex(ageTo.value) < ageIndex(ageFrom.value)) ageFrom.value = ageTo.value;
   });
 
-  attachTypeahead(book, { fetchItems: fetchBookSuggestions, onPick: (item) => (book.value = item.value) });
+  const bookCombo = attachTypeahead(book, {
+    fetchItems: fetchBookSuggestions,
+    onPick: (item) => (book.value = item.value),
+  }).root;
 
   const payload = () => ({
     title: title.value,
@@ -861,7 +874,7 @@ async function renderForm(id) {
     fieldRow("Beschreibung", "kurz", description),
     fieldRow("Fließtext", "Markdown, optional", text),
     fieldRow("Schlagworte", "Enter übernimmt, Backspace löscht", tagField.root),
-    fieldRow("Buch", null, h("div", { class: "combo" }, book)),
+    fieldRow("Buch", null, bookCombo),
     fieldRow("Ort", "Seite, Kapitel, Pfad", place),
     fieldRow(
       "Alter",
