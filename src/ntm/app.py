@@ -103,7 +103,7 @@ def create_app(settings: Settings) -> FastAPI:
                 for value in ages.axis()
             ],
             "entries": len(store.all()),
-            "app": version.info(),
+            "build": version.info(),
         }
 
     @app.get("/api/tags/suggest", dependencies=guarded)

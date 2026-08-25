@@ -663,6 +663,11 @@ kbd {
 .appfoot .rev {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.95em;
+  color: inherit;
+}
+
+a.rev:hover {
+  color: var(--accent);
 }
 
 .linkish {

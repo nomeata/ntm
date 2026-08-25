@@ -96,7 +96,7 @@ $ NTM_PASSWORD=geheim NTM_DATA_DIR=./data python -m ntm
 
 ```nix
 {
-  inputs.ntm.url = "github:…/ntm";   # oder "path:/pfad/zum/checkout"
+  inputs.ntm.url = "github:nomeata/ntm";   # oder "path:/pfad/zum/checkout"
 
   outputs = { nixpkgs, ntm, ... }: {
     nixosConfigurations.server = nixpkgs.lib.nixosSystem {
@@ -150,8 +150,9 @@ völlig.
 
 **Erfassen** – der Ablauf läuft ohne Maus durch: `n` öffnet das Formular, der
 Fokus steht im Titel, `Enter` springt jeweils ins nächste Feld (in der
-Beschreibung `Tab`), `Strg+S` speichert, `Strg+Enter` speichert und legt gleich den nächsten
-Eintrag an – Buch und Altersbereich bleiben dabei stehen. `Esc` bricht ab.
+Beschreibung `Tab`), `Strg+S` speichert, `Strg+Enter` speichert und legt gleich
+den nächsten Eintrag an – Buch und Altersbereich bleiben dabei stehen. `Esc`
+bricht ab.
 
 Schlagworte und Buch haben Typeahead. Getippt wird ein Präfix oder ein Stück
 aus der Mitte (`kasus` findet `Sprache/Grammatik/Kasus`); die Liste zeigt am
@@ -173,11 +174,14 @@ Schlagwortfilter, `/` Volltextsuche, `v` Ansicht, `?` Hilfe. Steht der Cursor
 doch in einem Feld, tun es dieselben Befehle mit Alt (`Alt+N`, `Alt+T`,
 `Alt+F`, `Alt+V`, `Alt+H`) – oder `Esc`, das den Fokus wieder freigibt.
 
-Ganz unten steht eine Fußzeile mit der Zahl der Einträge, der Version und der
-Revision des laufenden Programms – beim Nix-Deployment kommt sie aus dem Flake
-(`self.rev`, bei ungebundenem Arbeitsverzeichnis `self.dirtyRev`) und wird beim
-Bauen als `_build.py` mit ins Paket gelegt; im Arbeitsverzeichnis liest die App
-stattdessen `.git`. Dort liegt auch der Link zu den Tastenkürzeln.
+Ganz unten steht eine Fußzeile mit der Zahl der Einträge und der git-Revision
+des laufenden Programms, verlinkt auf den Commit bei GitHub – so lässt sich von
+der laufenden Instanz aus nachsehen, welcher Stand da eigentlich läuft.
+Versionsnummern gibt es bewusst keine. Beim Nix-Deployment kommt die Revision
+aus dem Flake (`self.rev`, bei unsauberem Arbeitsverzeichnis `self.dirtyRev`)
+und wird beim Bauen als `_build.py` ins Paket gelegt, denn im Store gibt es
+kein `.git`; läuft die App aus einem Arbeitsverzeichnis, liest sie `.git`
+selbst. Das Repository steht in `src/ntm/version.py`.
 
 ## Tests
 

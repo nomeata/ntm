@@ -65,7 +65,7 @@ function fakeFetch(path, options = {}) {
       ],
       books: [{ book: "Sprachförderung konkret", count: 2 }, { book: "digital", count: 1 }],
       entries: db.size,
-      app: { version: "0.1.0", revision: "abc12345" },
+      build: { revision: "abc12345", url: "https://github.com/nomeata/ntm/commit/abc12345" },
     });
   }
   if (p === "/api/tags/suggest") {
@@ -164,6 +164,7 @@ await wait(80);
 check("Suchansicht gerendert", $(".search-view"));
 check("Kein Feld greift den Fokus ab", document.activeElement === document.body, document.activeElement.tagName);
 check("Fußzeile zeigt Anzahl und Stand", $("#foot").textContent.includes("3 Einträge") && $("#foot").textContent.includes("abc12345"), $("#foot").textContent);
+check("Revision verweist auf GitHub", $("#foot a.rev") && $("#foot a.rev").href === "https://github.com/nomeata/ntm/commit/abc12345");
 check("Treffer geladen", $$("a.result").length === 3, `(${$$("a.result").length})`);
 check("Altersfilter gefüllt", $("select.age") && $("select.age").options.length === 19);
 

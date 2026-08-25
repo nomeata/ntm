@@ -1019,14 +1019,23 @@ function showHelp() {
 
 function drawFooter() {
   clear(foot);
-  if (!meta.app) return;
+  if (!meta.build) return;
   const dot = () => h("span", { class: "foot-dot", text: "·" });
+  const { revision, url } = meta.build;
   append(foot, [
     // "insgesamt", weil die Statuszeile darüber die Treffer der Suche zählt.
     h("span", { text: `${meta.entries} ${meta.entries === 1 ? "Eintrag" : "Einträge"} insgesamt` }),
     dot(),
-    h("span", { title: "Datenmodell und Programmstand", text: `ntm ${meta.app.version}` }),
-    meta.app.revision ? [dot(), h("code", { class: "rev", text: meta.app.revision })] : null,
+    url
+      ? h("a", {
+          class: "rev",
+          href: url,
+          target: "_blank",
+          rel: "noreferrer noopener",
+          title: "Stand des Programms auf GitHub",
+          text: revision,
+        })
+      : h("code", { class: "rev", text: revision }),
     dot(),
     h("button", { type: "button", class: "linkish", text: "Tastenkürzel", onclick: showHelp }),
   ]);

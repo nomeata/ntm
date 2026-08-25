@@ -11,9 +11,8 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
-from . import __version__
-
 UNKNOWN = "unbekannt"
+REPOSITORY = "https://github.com/nomeata/ntm"
 
 
 def _from_build() -> str | None:
@@ -58,5 +57,10 @@ def revision() -> str:
     return f"{short}-dirty" if found.endswith("-dirty") else short
 
 
-def info() -> dict[str, str]:
-    return {"version": __version__, "revision": revision()}
+def info() -> dict[str, str | None]:
+    """Was die Fußzeile anzeigt: die Revision und wo sie nachzuschlagen ist."""
+    current = revision()
+    if current == UNKNOWN:
+        return {"revision": current, "url": None}
+    commit = current.removesuffix("-dirty")
+    return {"revision": current, "url": f"{REPOSITORY}/commit/{commit}"}
