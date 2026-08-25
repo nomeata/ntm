@@ -779,7 +779,7 @@ async function renderForm(id) {
   };
 
   const title = h("input", { type: "text", value: initial.title, required: true, placeholder: "Titel" });
-  const text = h("textarea", { rows: 12, placeholder: "Fließtext (Markdown, optional)" });
+  const text = h("textarea", { rows: 8, placeholder: "Fließtext (Markdown, optional)" });
   text.value = initial.text || "";
   const tagField = createTagField({ values: initial.tags, placeholder: "Schlagwort, z. B. Sprache/Grammatik/Kasus" });
   const book = h("input", { type: "text", value: initial.book, placeholder: "Buch, Zeitschrift, „digital“ …" });
@@ -881,13 +881,13 @@ async function renderForm(id) {
       },
     },
     fieldRow("Titel", null, title),
-    fieldRow("Fließtext", "Markdown, optional", text),
-    fieldRow("Schlagworte", "Enter übernimmt, Backspace löscht", tagField.root),
+    fieldRow("Fließtext", null, text),
+    fieldRow("Schlagworte", "Enter übernimmt", tagField.root),
     fieldRow("Buch", null, bookCombo),
-    fieldRow("Ort", "Seite, Kapitel, Pfad", place),
+    fieldRow("Ort", null, place),
     fieldRow(
       "Alter",
-      "„Eltern“ ist der oberste Punkt der Skala",
+      "5 … 21+ … Eltern",
       h("div", { class: "age-range" }, ageFrom, h("span", { class: "dash", text: "–" }), ageTo),
     ),
     h(
@@ -942,11 +942,7 @@ async function renderForm(id) {
   const view = h(
     "div",
     { class: "view form-view" },
-    topbar(
-      h("h1", { class: "form-title", text: isNew ? "Neuer Eintrag" : "Eintrag bearbeiten" }),
-      h("div", { class: "spacer" }),
-      iconButton("Abbrechen", "Esc", cancel, "ghost"),
-    ),
+    topbar(h("h1", { class: "form-title", text: isNew ? "Neuer Eintrag" : "Eintrag bearbeiten" })),
     form,
   );
 
