@@ -212,3 +212,7 @@ aus, und `nix build` fasst npm nicht an.
 **NixOS-Modul**: `nix flake check` baut die systemd-Unit einer
 Minimalkonfiguration, damit Tippfehler im Modul nicht erst auf dem Server
 auffallen.
+
+## Lizenz
+
+MIT, siehe [LICENSE](LICENSE).

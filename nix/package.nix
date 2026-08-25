@@ -21,6 +21,7 @@ buildPythonApplication {
     fileset = lib.fileset.unions [
       ../pyproject.toml
       ../README.md
+      ../LICENSE
       ../src
       ../tests
     ];
