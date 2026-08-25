@@ -158,8 +158,9 @@ def test_meta_liefert_tags_buecher_und_altersachse(client):
     assert meta["ages"][0] == {"value": 5, "label": "5"}
     assert meta["ages"][-1] == {"value": "Eltern", "label": "Eltern"}
     assert meta["entries"] == 2
-    assert meta["build"]["revision"]  # aus dem Flake oder aus .git
-    assert meta["build"]["url"].startswith("https://github.com/")
+    build = meta["build"]
+    assert build["revision"]  # aus dem Flake, aus .git, sonst "unbekannt"
+    assert build["url"] is None or build["url"].startswith("https://github.com/")
 
 
 def test_tag_typeahead(client):
