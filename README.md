@@ -167,7 +167,11 @@ sich zwischen „nur Titel“ und „mit Angaben“ (Buch, Ort, Schlagworte)
 umschalten. Alle Filter stehen in der URL, der Zurück-Button funktioniert also
 auch auf dem Handy wie erwartet.
 
-`?` zeigt alle Tastenkürzel.
+**Tastenkürzel** – auf der Suchseite bekommt bewusst kein Feld automatisch den
+Fokus, damit die Buchstabenkürzel sofort greifen: `n` neuer Eintrag, `t`
+Schlagwortfilter, `/` Volltextsuche, `v` Ansicht, `?` Hilfe. Steht der Cursor
+doch in einem Feld, tun es dieselben Befehle mit Alt (`Alt+N`, `Alt+T`,
+`Alt+F`, `Alt+V`, `Alt+H`) – oder `Esc`, das den Fokus wieder freigibt.
 
 ## Tests
 

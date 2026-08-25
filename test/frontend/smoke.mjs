@@ -161,6 +161,7 @@ function check(name, condition, info = "") {
 await wait(80);
 
 check("Suchansicht gerendert", $(".search-view"));
+check("Kein Feld greift den Fokus ab", document.activeElement === document.body, document.activeElement.tagName);
 check("Treffer geladen", $$("a.result").length === 3, `(${$$("a.result").length})`);
 check("Altersfilter gefüllt", $("select.age") && $("select.age").options.length === 19);
 
@@ -192,6 +193,20 @@ check("Tag-Filter wirkt", $$("a.result").length === 1, `(${$$("a.result").length
 key(filterTagInput, "Backspace");
 await wait(220);
 check("Backspace entfernt den Chip", !$(".searchbar .chip"));
+
+// Tastenkürzel, obwohl der Fokus in einem Textfeld steht
+$("input.q").focus();
+key($("input.q"), "Escape");
+check("Esc nimmt den Fokus aus dem Suchfeld", document.activeElement !== $("input.q"));
+key(document.body, "t");
+check("t springt in den Schlagwortfilter", document.activeElement === $(".searchbar .tag-input"));
+$("input.q").focus();
+key($("input.q"), "n", { altKey: true, code: "KeyN" });
+await wait(80);
+check("Alt+N wirkt auch im Textfeld", $(".form-view"));
+key($(".entry-form"), "Escape");
+await wait(100);
+check("Zurück in der Suche", $(".search-view"));
 
 // Neuer Eintrag – der Ablauf ohne Maus
 key(document.body, "n");

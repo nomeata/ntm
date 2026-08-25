@@ -62,8 +62,6 @@ function isTyping(target) {
   return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable;
 }
 
-const isDesktop = () => window.matchMedia("(min-width: 700px)").matches;
-
 /* --------------------------------------------------------------- Meldungen */
 
 function toast(message, kind = "info") {
@@ -642,9 +640,11 @@ function createSearchView() {
 
   return {
     root,
-    focusSearch() {
-      q.focus();
-      q.select();
+    /** which: "q" für die Volltextsuche, sonst das Schlagwortfeld. */
+    focus(which) {
+      const field = which === "q" ? q : tagField.input;
+      field.focus();
+      if (field.select) field.select();
     },
     toggleMode,
     sync(search) {
@@ -660,16 +660,18 @@ function createSearchView() {
   };
 }
 
-let focusSearchAfterRoute = false;
+// Beim Betreten der Suche bekommt bewusst *kein* Feld den Fokus: sonst
+// landen die Buchstabenkürzel im Eingabefeld statt im Programm.
+let focusAfterRoute = null;
 
 function renderSearch(search) {
   document.title = "Therapiematerialien";
   if (!searchView) searchView = createSearchView();
   mount(searchView.root);
   searchView.sync(search);
-  if (focusSearchAfterRoute || (isDesktop() && !search.toString())) {
-    focusSearchAfterRoute = false;
-    searchView.focusSearch();
+  if (focusAfterRoute) {
+    searchView.focus(focusAfterRoute);
+    focusAfterRoute = null;
   }
 }
 
@@ -979,18 +981,20 @@ window.addEventListener("beforeunload", (event) => {
 
 const SHORTCUTS = [
   ["n", "Neuen Eintrag anlegen"],
-  ["/", "Suchfeld fokussieren"],
+  ["t", "Zum Schlagwortfilter"],
+  ["/", "Zur Volltextsuche"],
   ["v", "Listenansicht umschalten"],
+  ["?", "Diese Hilfe"],
+  ["Alt + n t / v h", "dieselben Befehle, auch während man in einem Feld tippt"],
+  ["Esc", "Fokus aus dem Feld nehmen, Vorschlagsliste schließen, zurück"],
   ["↑ ↓", "In der Trefferliste blättern"],
-  ["Enter", "Eintrag öffnen / im Formular ins nächste Feld"],
+  ["Enter", "Eintrag öffnen; im Formular ins nächste Feld"],
+  ["e", "Eintrag bearbeiten (in der Detailansicht)"],
+  ["Entf", "Eintrag löschen (in der Detailansicht)"],
   ["Enter , ", "Schlagwort übernehmen (Vorschlag oder Getipptes)"],
   ["Tab", "Nächstes Feld, übernimmt dabei den Vorschlag"],
-  ["e", "Eintrag bearbeiten (Detailansicht)"],
-  ["Entf", "Eintrag löschen (Detailansicht)"],
-  ["Strg+S", "Speichern"],
-  ["Strg+Enter", "Speichern und gleich den nächsten anlegen"],
-  ["Esc", "Vorschlagsliste schließen, sonst abbrechen bzw. zurück"],
-  ["?", "Diese Hilfe"],
+  ["Strg + s", "Speichern"],
+  ["Strg + Enter", "Speichern und gleich den nächsten Eintrag anlegen"],
 ];
 
 function showHelp() {
@@ -1047,34 +1051,76 @@ function route() {
 
 window.addEventListener("hashchange", route);
 
+/*
+ * Zwei Wege zum selben Ziel:
+ *
+ *   – einzelne Buchstaben, solange der Fokus in keinem Eingabefeld steht,
+ *   – dieselben Befehle mit Alt, die auch beim Tippen greifen.
+ *
+ * Für die Alt-Kürzel zählt `event.code`, nicht `event.key`: mit gedrückter
+ * Alt-Taste liefern manche Tastaturbelegungen Sonderzeichen statt Buchstaben.
+ */
+const COMMANDS = {
+  KeyN: () => go("/new"),
+  KeyT: () => focusFilter("tag"),
+  KeyF: () => focusFilter("q"),
+  KeyV: () => searchView && searchView.toggleMode(),
+  KeyH: () => showHelp(),
+};
+
+const LETTER_COMMANDS = {
+  n: COMMANDS.KeyN,
+  t: COMMANDS.KeyT,
+  "/": COMMANDS.KeyF,
+  v: COMMANDS.KeyV,
+  "?": COMMANDS.KeyH,
+};
+
+/** Springt zur Suche (falls nötig) und fokussiert dort ein Filterfeld. */
+function focusFilter(which) {
+  const onSearch = location.hash === "" || location.hash === "#/" || location.hash.startsWith("#/?");
+  if (onSearch && searchView) {
+    searchView.focus(which);
+  } else {
+    focusAfterRoute = which;
+    go("/");
+  }
+}
+
 document.addEventListener("keydown", (event) => {
-  if (event.ctrlKey || event.metaKey || event.altKey) return;
+  if (event.ctrlKey || event.metaKey) return;
   const inDialog = document.querySelector("dialog[open]");
-  if (event.key === "Escape" && !inDialog && !isTyping(event.target)) {
+  if (inDialog) return; // der Dialog kümmert sich selbst um Esc
+
+  if (event.key === "Escape") {
+    if (isTyping(event.target)) {
+      // Fokus aus dem Feld nehmen, damit die Buchstabenkürzel wieder greifen.
+      event.target.blur();
+      return;
+    }
     if (!location.hash.startsWith("#/e/") && location.hash !== "#/new") return;
     event.preventDefault();
     back();
     return;
   }
-  // Im Formular haben Buchstaben nichts verloren – sonst würde „n“ mit Fokus
-  // auf einem Knopf mitten im Tippen einen neuen Eintrag aufmachen.
-  if (isTyping(event.target) || inDialog || guard.enabled) return;
-  if (event.key === "n") {
-    event.preventDefault();
-    go("/new");
-  } else if (event.key === "/") {
-    event.preventDefault();
-    const onSearch = location.hash === "" || location.hash === "#/" || location.hash.startsWith("#/?");
-    if (onSearch && searchView) searchView.focusSearch();
-    else {
-      focusSearchAfterRoute = true;
-      go("/");
+
+  // Im Formular würde jede Navigation die Eingabe wegwerfen.
+  if (guard.enabled) return;
+
+  if (event.altKey) {
+    const command = COMMANDS[event.code];
+    if (command) {
+      event.preventDefault();
+      command();
     }
-  } else if (event.key === "v") {
-    if (searchView) searchView.toggleMode();
-  } else if (event.key === "?") {
+    return;
+  }
+
+  if (isTyping(event.target)) return;
+  const command = LETTER_COMMANDS[event.key];
+  if (command) {
     event.preventDefault();
-    showHelp();
+    command();
   }
 });
 
