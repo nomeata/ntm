@@ -126,11 +126,11 @@ $ NTM_PASSWORD=geheim NTM_DATA_DIR=./data python -m ntm
 
 Das `follows` ist Absicht: damit baut der Dienst gegen dasselbe nixpkgs wie der
 Rest des Systems, teilt sich Python und die Bibliotheken mit ihm und zieht
-keinen zweiten nixpkgs-Baum in den Store. Nachgeprüft mit dem gepinnten
-nixpkgs und mit dem Release davor; deutlich ältere Systeme scheitern
-irgendwann an den Anforderungen (`nixos-24.11` etwa an setuptools < 77, das
-die Lizenzangabe nach PEP 639 noch nicht kennt). Wenn es daran hakt: die
-`follows`-Zeile weglassen, dann bringt der Dienst sein eigenes nixpkgs mit.
+keinen zweiten nixpkgs-Baum in den Store. Nachgeprüft ist das Bauen gegen
+`nixos-25.05`, `nixos-25.11` und das gepinnte nixpkgs; `nixos-24.11` scheitert
+an setuptools < 77, das die Lizenzangabe nach PEP 639 noch nicht kennt. Wenn
+es auf einem älteren System daran hakt: die `follows`-Zeile weglassen, dann
+bringt der Dienst sein eigenes nixpkgs mit.
 
 Optionen: `enable`, `package`, `address`, `port`, `dataDir`, `passwordFile`,
 `password`, `user`, `group`, `openFirewall`. Genau eine der beiden Optionen
