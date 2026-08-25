@@ -1,8 +1,8 @@
 # ntm – Verwaltung von Therapiematerialien
 
-Eine kleine Webanwendung für genau eine Nutzerin: Materialien erfassen
-(Titel, Beschreibung, Markdown-Text, Altersbereich, Schlagworte, Fundort) und
-später schnell wiederfinden. Kein Datenbankserver – ein Verzeichnis mit einer
+Eine kleine Webanwendung für genau eine Nutzerin: Materialien erfassen (Titel,
+Markdown-Text, Altersbereich, Schlagworte, Fundort) und später schnell
+wiederfinden. Kein Datenbankserver – ein Verzeichnis mit einer
 JSON-Datei pro Eintrag.
 
 ## Auf einen Blick
@@ -22,7 +22,6 @@ JSON-Datei pro Eintrag.
   "schema_version": 1,
   "id": "01m0twa5kk9mratj",
   "title": "Kasus-Memory",
-  "description": "Memory zu Dativ und Akkusativ",
   "text": "## Ablauf\n\nDie Karten werden gemischt …",
   "age_from": 7,
   "age_to": 12,
@@ -160,12 +159,13 @@ Ende immer auch das gerade Getippte als neues Schlagwort an, damit sichtbar
 ist, was `Enter` tun wird. `Esc` schließt die Liste, danach übernimmt `Enter`
 den Text wörtlich.
 
-**Suchen** – Volltext über Titel, Beschreibung und Fließtext (mehrere Wörter
-sind UND-verknüpft, `"in Anführungszeichen"` bleibt zusammen, Umlaute sind
-egal: `marchen`, `maerchen` und `Märchen` finden dasselbe), dazu beliebig viele
-Tag-Filter, ein Alterswert und die Umschaltung zwischen kompakter Liste und
-Liste mit Beschreibung. Die Filter stehen in der URL, der Zurück-Button
-funktioniert also auch auf dem Handy wie erwartet.
+**Suchen** – zuerst die Schlagwortfilter (beliebig viele, kombinierbar) und der
+Alterswert, darunter die Volltextsuche über Titel und Fließtext: mehrere Wörter
+sind UND-verknüpft, `"in Anführungszeichen"` bleibt zusammen, Umlaute sind egal
+(`marchen`, `maerchen` und `Märchen` finden dasselbe). Die Trefferliste lässt
+sich zwischen „nur Titel“ und „mit Angaben“ (Buch, Ort, Schlagworte)
+umschalten. Alle Filter stehen in der URL, der Zurück-Button funktioniert also
+auch auf dem Handy wie erwartet.
 
 `?` zeigt alle Tastenkürzel.
 

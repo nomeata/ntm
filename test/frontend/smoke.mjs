@@ -24,11 +24,11 @@ let nextId = 100;
 const db = new Map();
 function seed(entry) {
   const id = `e${nextId++}`;
-  db.set(id, { id, description: "", text: "", tags: [], book: "", location: "", age_from: 5, age_to: 21, ...entry });
+  db.set(id, { id, text: "", tags: [], book: "", location: "", age_from: 5, age_to: 21, ...entry });
   return id;
 }
-seed({ title: "Kasus-Memory", description: "Memory zu Dativ", tags: ["Sprache/Grammatik/Kasus"], book: "Sprachförderung konkret", location: "S. 45", age_from: 7, age_to: 12 });
-seed({ title: "Wortschatzkiste", description: "Bildkarten", tags: ["Sprache/Wortschatz"], book: "Sprachförderung konkret", age_from: 5, age_to: 9 });
+seed({ title: "Kasus-Memory", text: "Memory zu Dativ", tags: ["Sprache/Grammatik/Kasus"], book: "Sprachförderung konkret", location: "S. 45", age_from: 7, age_to: 12 });
+seed({ title: "Wortschatzkiste", text: "Bildkarten", tags: ["Sprache/Wortschatz"], book: "Sprachförderung konkret", age_from: 5, age_to: 9 });
 seed({ title: "Elternbrief", tags: ["Mit Eltern"], book: "digital", age_from: "Eltern", age_to: "Eltern" });
 
 const label = (from, to) => (String(from) === String(to) ? String(from) : `${from}–${to}`);
@@ -82,7 +82,7 @@ function fakeFetch(path, options = {}) {
     const wantedTags = q.getAll("tag");
     const age = q.get("age");
     let hits = [...db.values()];
-    if (needle) hits = hits.filter((e) => `${e.title} ${e.description} ${e.text}`.toLowerCase().includes(needle));
+    if (needle) hits = hits.filter((e) => `${e.title} ${e.text}`.toLowerCase().includes(needle));
     for (const tag of wantedTags) hits = hits.filter((e) => e.tags.some((t) => t === tag || t.startsWith(`${tag}/`)));
     if (age) hits = hits.filter((e) => String(e.age_from) === age || String(e.age_to) === age || (Number(e.age_from) <= Number(age) && Number(age) <= Number(e.age_to)));
     hits.sort((a, b) => a.title.localeCompare(b.title));
@@ -203,12 +203,8 @@ check("Fokus im Titel", document.activeElement === titleInput);
 
 titleInput.value = "Silbenteppich";
 key(titleInput, "Enter");
-const descInput = fields()[1];
-check("Enter springt zur Beschreibung", document.activeElement === descInput);
-descInput.value = "Übung zur phonologischen Bewusstheit";
-key(descInput, "Enter");
 const textArea = $(".entry-form textarea");
-check("Enter springt in den Fließtext", document.activeElement === textArea);
+check("Enter springt vom Titel in den Fließtext", document.activeElement === textArea);
 textArea.value = "## Ablauf\n\nSilben klatschen.";
 key(textArea, "Tab");
 const tagInput = $(".entry-form .tag-input");
@@ -236,7 +232,7 @@ type(tagInput, "");
 await wait(120);
 key(tagInput, "Escape");
 key(tagInput, "Enter");
-const bookInput = $(".entry-form .field:nth-of-type(5) input");
+const bookInput = $(".entry-form .field:nth-of-type(4) input");
 check("Enter im leeren Tagfeld springt zum Buch", document.activeElement === bookInput, document.activeElement.outerHTML.slice(0, 60));
 
 // Buch per Typeahead
@@ -247,7 +243,7 @@ key(bookInput, "Enter");
 await wait(60);
 check("Buch übernommen", bookInput.value === "Sprachförderung konkret", bookInput.value);
 key(bookInput, "Enter");
-const placeInput = $(".entry-form .field:nth-of-type(6) input");
+const placeInput = $(".entry-form .field:nth-of-type(5) input");
 check("Enter springt zum Ort", document.activeElement === placeInput);
 placeInput.value = "S. 7";
 key(placeInput, "Enter");
@@ -300,7 +296,7 @@ await wait(120);
 key($(".entry-form"), "Enter", { ctrlKey: true });
 await wait(200);
 check("Strg+Enter öffnet ein leeres Formular", $(".form-view") && $(".entry-form input").value === "");
-check("Buch bleibt stehen", $(".entry-form .field:nth-of-type(5) input").value === "Sprachförderung konkret");
+check("Buch bleibt stehen", $(".entry-form .field:nth-of-type(4) input").value === "Sprachförderung konkret");
 check("Alter bleibt stehen", $$(".entry-form select")[1].value === "Eltern");
 confirmAnswer = true;
 key($(".entry-form"), "Escape");

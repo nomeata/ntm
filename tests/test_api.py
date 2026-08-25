@@ -70,7 +70,6 @@ def test_anlegen_lesen_aendern_loeschen(client):
     entry = create(
         client,
         title="Kasus-Memory",
-        description="Memory zu Dativ",
         text="# Ablauf\n\nKarten mischen.",
         tags=["Sprache/Grammatik/Kasus"],
         book="Sprachförderung konkret",

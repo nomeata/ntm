@@ -2,7 +2,7 @@
 
 Ein Eintrag ist ein Treffer, wenn er *alle* Bedingungen erfüllt:
 
-* jedes Token der Volltextsuche kommt in Titel, Beschreibung oder Fließtext vor,
+* jedes Token der Volltextsuche kommt im Titel oder im Fließtext vor,
 * jedes Filter-Schlagwort passt (Unter-Tags eingeschlossen),
 * der gesuchte Punkt der Altersachse liegt im Bereich des Eintrags.
 """
@@ -16,7 +16,6 @@ from . import ages, tags as tags_mod, text
 from .models import Entry
 
 WEIGHT_TITLE = 3
-WEIGHT_DESCRIPTION = 2
 WEIGHT_TEXT = 1
 
 
@@ -26,7 +25,6 @@ class IndexedEntry:
 
     entry: Entry
     title: text.Folded
-    description: text.Folded
     body: text.Folded
 
     @classmethod
@@ -34,7 +32,6 @@ class IndexedEntry:
         return cls(
             entry=entry,
             title=text.fold(entry.title),
-            description=text.fold(entry.description),
             body=text.fold(entry.text),
         )
 
@@ -57,8 +54,6 @@ def score(indexed: IndexedEntry, tokens: list[str]) -> int | None:
         best = 0
         if text.contains(indexed.title, token):
             best = WEIGHT_TITLE
-        elif text.contains(indexed.description, token):
-            best = WEIGHT_DESCRIPTION
         elif text.contains(indexed.body, token):
             best = WEIGHT_TEXT
         if best == 0:

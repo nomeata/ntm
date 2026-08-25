@@ -15,7 +15,6 @@ def make_entry(entry_id: str = "x", **kwargs) -> Entry:
     """Eintrag mit brauchbaren Vorgaben; Alter darf als 5/"Eltern" kommen."""
     data = {
         "title": "Titel",
-        "description": "",
         "text": "",
         "age_from": 5,
         "age_to": 21,

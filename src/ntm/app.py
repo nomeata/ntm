@@ -28,7 +28,6 @@ def _summary(entry: Entry) -> dict[str, Any]:
     return {
         "id": entry.id,
         "title": entry.title,
-        "description": entry.description,
         "tags": entry.tags,
         "age_from": ages.serialize_age(entry.age_from),
         "age_to": ages.serialize_age(entry.age_to),

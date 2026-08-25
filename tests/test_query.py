@@ -16,8 +16,7 @@ def sample():
         make_entry(
             "a",
             title="Kasus-Memory",
-            description="Memory zu Dativ und Akkusativ",
-            text="Die Karten werden gemischt.",
+            text="Memory zu Dativ und Akkusativ\n\nDie Karten werden gemischt.",
             tags=["Sprache/Grammatik/Kasus", "Format/Spiel"],
             age_from=7,
             age_to=12,
@@ -26,8 +25,7 @@ def sample():
         make_entry(
             "b",
             title="Wortschatzkiste",
-            description="Bildkarten zum Wortfeld Küche",
-            text="Sortieren nach Oberbegriffen, auch mit Eltern zu Hause.",
+            text="Bildkarten zum Wortfeld Küche\n\nSortieren nach Oberbegriffen, auch mit Eltern zu Hause.",
             tags=["Sprache/Wortschatz"],
             age_from=5,
             age_to=9,
@@ -36,7 +34,7 @@ def sample():
         make_entry(
             "c",
             title="Elternbrief Mundmotorik",
-            description="Übungen für zu Hause",
+            text="Übungen für zu Hause",
             tags=["Motorik/Mundmotorik", "Mit Eltern"],
             age_from=ages.PARENTS,
             age_to=ages.PARENTS,
@@ -53,7 +51,7 @@ def test_ohne_filter_alles_alphabetisch():
     ]
 
 
-def test_volltext_ueber_titel_beschreibung_text():
+def test_volltext_ueber_titel_und_text():
     assert titles(search(sample(), SearchQuery(q="memory"))) == ["Kasus-Memory"]
     assert titles(search(sample(), SearchQuery(q="bildkarten"))) == ["Wortschatzkiste"]
     assert titles(search(sample(), SearchQuery(q="gemischt"))) == ["Kasus-Memory"]
@@ -71,7 +69,7 @@ def test_mehrere_tokens_sind_und_verknuepft():
 
 
 def test_tokens_duerfen_in_verschiedenen_feldern_stehen():
-    # "elternbrief" steht im Titel, "übungen" in der Beschreibung.
+    # "elternbrief" steht im Titel, "übungen" im Fließtext.
     assert titles(search(sample(), SearchQuery(q="elternbrief übungen"))) == [
         "Elternbrief Mundmotorik"
     ]

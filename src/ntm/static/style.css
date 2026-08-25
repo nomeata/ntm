@@ -331,12 +331,6 @@ a.result:hover {
   font-variant-numeric: tabular-nums;
 }
 
-.result-description {
-  margin: 0.2rem 0 0;
-  color: var(--muted);
-  font-size: 0.92rem;
-}
-
 .result-meta {
   display: flex;
   flex-wrap: wrap;
@@ -355,7 +349,6 @@ a.result:hover {
   padding: 0.35rem 0.8rem;
 }
 
-.results.compact .result-description,
 .results.compact .result-meta {
   display: none;
 }
@@ -376,11 +369,6 @@ a.result:hover {
 .detail h1 {
   margin: 0;
   font-size: 1.5rem;
-}
-
-.detail .lead {
-  color: var(--muted);
-  margin: 0.4rem 0 0.8rem;
 }
 
 .detail-meta,

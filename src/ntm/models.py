@@ -19,7 +19,6 @@ class EntryInput(BaseModel):
     """Was das Formular schickt."""
 
     title: str = ""
-    description: str = ""
     text: str = ""
     age_from: int = ages.AGE_MIN
     age_to: int = ages.AGE_MAX
@@ -27,7 +26,7 @@ class EntryInput(BaseModel):
     book: str = ""
     location: str = ""
 
-    @field_validator("title", "description", "text", "book", "location", mode="before")
+    @field_validator("title", "text", "book", "location", mode="before")
     @classmethod
     def _clean_str(cls, value: object) -> str:
         if value is None:
@@ -85,5 +84,5 @@ class Entry(EntryInput):
             **data.model_dump(),
         )
 
-    def haystack(self) -> tuple[str, str, str]:
-        return (self.title, self.description, self.text)
+    def haystack(self) -> tuple[str, str]:
+        return (self.title, self.text)

@@ -525,7 +525,7 @@ function createSearchView() {
 
   function drawMode() {
     results.classList.toggle("compact", state.mode === "compact");
-    modeButton.textContent = state.mode === "compact" ? "☰ Kompakt" : "≡ Beschreibung";
+    modeButton.textContent = state.mode === "compact" ? "Nur Titel" : "Mit Angaben";
   }
 
   function params() {
@@ -600,7 +600,6 @@ function createSearchView() {
               h("span", { class: "result-title", text: entry.title }),
               h("span", { class: "result-age", text: entry.age_label }),
             ),
-            entry.description ? h("p", { class: "result-description", text: entry.description }) : null,
             h(
               "div",
               { class: "result-meta" },
@@ -700,7 +699,6 @@ async function renderDetail(id) {
     ),
     h("article", { class: "detail" }, [
       h("h1", { text: entry.title }),
-      entry.description ? h("p", { class: "lead", text: entry.description }) : null,
       h(
         "div",
         { class: "detail-meta" },
@@ -758,7 +756,6 @@ async function renderForm(id) {
 
   const initial = original || {
     title: "",
-    description: "",
     text: "",
     tags: [],
     book: (carryOver && carryOver.book) || "",
@@ -768,7 +765,6 @@ async function renderForm(id) {
   };
 
   const title = h("input", { type: "text", value: initial.title, required: true, placeholder: "Titel" });
-  const description = h("input", { type: "text", value: initial.description, placeholder: "Kurze Beschreibung" });
   const text = h("textarea", { rows: 12, placeholder: "Fließtext (Markdown, optional)" });
   text.value = initial.text || "";
   const tagField = createTagField({ values: initial.tags, placeholder: "Schlagwort, z. B. Sprache/Grammatik/Kasus" });
@@ -799,7 +795,6 @@ async function renderForm(id) {
 
   const payload = () => ({
     title: title.value,
-    description: description.value,
     text: text.value,
     tags: tagField.values,
     book: book.value,
@@ -871,7 +866,6 @@ async function renderForm(id) {
       },
     },
     fieldRow("Titel", null, title),
-    fieldRow("Beschreibung", "kurz", description),
     fieldRow("Fließtext", "Markdown, optional", text),
     fieldRow("Schlagworte", "Enter übernimmt, Backspace löscht", tagField.root),
     fieldRow("Buch", null, bookCombo),
