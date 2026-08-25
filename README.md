@@ -1,8 +1,8 @@
 # ntm – Verwaltung von Therapiematerialien
 
 Eine kleine Webanwendung für genau eine Nutzerin: Materialien erfassen (Titel,
-Markdown-Text, Altersbereich, Schlagworte, Fundort) und später schnell
-wiederfinden. Kein Datenbankserver – ein Verzeichnis mit einer
+Beschreibung in Markdown, Altersbereich, Schlagworte, Fundort) und später
+schnell wiederfinden. Kein Datenbankserver – ein Verzeichnis mit einer
 JSON-Datei pro Eintrag.
 
 ## Auf einen Blick
@@ -149,8 +149,8 @@ völlig.
 ## Bedienung
 
 **Erfassen** – der Ablauf läuft ohne Maus durch: `n` öffnet das Formular, der
-Fokus steht im Titel, `Enter` springt jeweils ins nächste Feld (im Fließtext
-`Tab`), `Strg+S` speichert, `Strg+Enter` speichert und legt gleich den nächsten
+Fokus steht im Titel, `Enter` springt jeweils ins nächste Feld (in der
+Beschreibung `Tab`), `Strg+S` speichert, `Strg+Enter` speichert und legt gleich den nächsten
 Eintrag an – Buch und Altersbereich bleiben dabei stehen. `Esc` bricht ab.
 
 Schlagworte und Buch haben Typeahead. Getippt wird ein Präfix oder ein Stück
@@ -160,9 +160,9 @@ ist, was `Enter` tun wird. `Esc` schließt die Liste, danach übernimmt `Enter`
 den Text wörtlich.
 
 **Suchen** – zuerst die Schlagwortfilter (beliebig viele, kombinierbar) und der
-Alterswert, darunter die Volltextsuche über Titel und Fließtext: mehrere Wörter
-sind UND-verknüpft, `"in Anführungszeichen"` bleibt zusammen, Umlaute sind egal
-(`marchen`, `maerchen` und `Märchen` finden dasselbe). Die Trefferliste lässt
+Alterswert, darunter die Volltextsuche über Titel und Beschreibung: mehrere
+Wörter sind UND-verknüpft, `"in Anführungszeichen"` bleibt zusammen, Umlaute
+sind egal (`marchen`, `maerchen` und `Märchen` finden dasselbe). Die Liste lässt
 sich zwischen „nur Titel“ und „mit Angaben“ (Buch, Ort, Schlagworte)
 umschalten. Alle Filter stehen in der URL, der Zurück-Button funktioniert also
 auch auf dem Handy wie erwartet.

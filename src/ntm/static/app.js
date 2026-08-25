@@ -779,7 +779,7 @@ async function renderForm(id) {
   };
 
   const title = h("input", { type: "text", value: initial.title, required: true, placeholder: "Titel" });
-  const text = h("textarea", { rows: 8, placeholder: "Fließtext (Markdown, optional)" });
+  const text = h("textarea", { rows: 8, placeholder: "Beschreibung (Markdown, optional)" });
   text.value = initial.text || "";
   const tagField = createTagField({ values: initial.tags, placeholder: "Schlagwort, z. B. Sprache/Grammatik/Kasus" });
   const book = h("input", { type: "text", value: initial.book, placeholder: "Buch, Zeitschrift, „digital“ …" });
@@ -881,7 +881,7 @@ async function renderForm(id) {
       },
     },
     fieldRow("Titel", null, title),
-    fieldRow("Fließtext", null, text),
+    fieldRow("Beschreibung", null, text),
     fieldRow("Schlagworte", "Enter übernimmt", tagField.root),
     fieldRow("Buch", null, bookCombo),
     fieldRow("Ort", null, place),

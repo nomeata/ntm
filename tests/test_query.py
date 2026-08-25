@@ -69,7 +69,7 @@ def test_mehrere_tokens_sind_und_verknuepft():
 
 
 def test_tokens_duerfen_in_verschiedenen_feldern_stehen():
-    # "elternbrief" steht im Titel, "übungen" im Fließtext.
+    # "elternbrief" steht im Titel, "übungen" in der Beschreibung.
     assert titles(search(sample(), SearchQuery(q="elternbrief übungen"))) == [
         "Elternbrief Mundmotorik"
     ]

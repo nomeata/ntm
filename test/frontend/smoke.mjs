@@ -221,7 +221,7 @@ check("Fokus im Titel", document.activeElement === titleInput);
 titleInput.value = "Silbenteppich";
 key(titleInput, "Enter");
 const textArea = $(".entry-form textarea");
-check("Enter springt vom Titel in den Fließtext", document.activeElement === textArea);
+check("Enter springt vom Titel in die Beschreibung", document.activeElement === textArea);
 textArea.value = "## Ablauf\n\nSilben klatschen.";
 key(textArea, "Tab");
 const tagInput = $(".entry-form .tag-input");

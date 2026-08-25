@@ -2,7 +2,7 @@
 
 Ein Eintrag ist ein Treffer, wenn er *alle* Bedingungen erfüllt:
 
-* jedes Token der Volltextsuche kommt im Titel oder im Fließtext vor,
+* jedes Token der Volltextsuche kommt im Titel oder in der Beschreibung vor,
 * jedes Filter-Schlagwort passt (Unter-Tags eingeschlossen),
 * der gesuchte Punkt der Altersachse liegt im Bereich des Eintrags.
 """
