@@ -49,7 +49,7 @@ body {
 .app {
   max-width: 62rem;
   margin: 0 auto;
-  padding: 0 1rem 4rem;
+  padding: 0 1rem 1rem;
 }
 
 /* ------------------------------------------------------------- Bedienung */
@@ -635,6 +635,44 @@ kbd {
   border-radius: 5px;
   padding: 0.05rem 0.35rem;
   white-space: nowrap;
+}
+
+/* ------------------------------------------------------------- Fußzeile */
+
+.appfoot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.4rem;
+  max-width: 62rem;
+  margin: 0 auto;
+  padding: 1rem 1rem 2rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.appfoot:empty {
+  display: none;
+}
+
+.foot-dot {
+  opacity: 0.5;
+}
+
+.appfoot .rev {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.95em;
+}
+
+.linkish {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+  font-size: inherit;
 }
 
 .toasts {

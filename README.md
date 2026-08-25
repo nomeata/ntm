@@ -173,6 +173,12 @@ Schlagwortfilter, `/` Volltextsuche, `v` Ansicht, `?` Hilfe. Steht der Cursor
 doch in einem Feld, tun es dieselben Befehle mit Alt (`Alt+N`, `Alt+T`,
 `Alt+F`, `Alt+V`, `Alt+H`) – oder `Esc`, das den Fokus wieder freigibt.
 
+Ganz unten steht eine Fußzeile mit der Zahl der Einträge, der Version und der
+Revision des laufenden Programms – beim Nix-Deployment kommt sie aus dem Flake
+(`self.rev`, bei ungebundenem Arbeitsverzeichnis `self.dirtyRev`) und wird beim
+Bauen als `_build.py` mit ins Paket gelegt; im Arbeitsverzeichnis liest die App
+stattdessen `.git`. Dort liegt auch der Link zu den Tastenkürzeln.
+
 ## Tests
 
 ```console

@@ -8,6 +8,7 @@
   linkify-it-py,
   pytestCheckHook,
   httpx,
+  revision ? "",
 }:
 
 buildPythonApplication {
@@ -24,6 +25,11 @@ buildPythonApplication {
       ../tests
     ];
   };
+
+  # Im Store gibt es kein .git – die Revision kommt aus dem Flake.
+  postPatch = ''
+    echo 'REVISION = "${revision}"' > src/ntm/_build.py
+  '';
 
   build-system = [ setuptools ];
 

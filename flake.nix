@@ -21,13 +21,17 @@
           pkgs = nixpkgs.legacyPackages.${system};
         in
         rec {
-          ntm = pkgs.python3Packages.callPackage ./nix/package.nix { };
+          ntm = pkgs.python3Packages.callPackage ./nix/package.nix {
+            revision = self.rev or self.dirtyRev or "";
+          };
           default = ntm;
         }
       );
 
       overlays.default = final: _prev: {
-        ntm = final.python3Packages.callPackage ./nix/package.nix { };
+        ntm = final.python3Packages.callPackage ./nix/package.nix {
+          revision = self.rev or self.dirtyRev or "";
+        };
       };
 
       nixosModules.default = import ./nix/module.nix { inherit self; };

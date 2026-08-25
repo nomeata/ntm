@@ -65,6 +65,7 @@ function fakeFetch(path, options = {}) {
       ],
       books: [{ book: "Sprachförderung konkret", count: 2 }, { book: "digital", count: 1 }],
       entries: db.size,
+      app: { version: "0.1.0", revision: "abc12345" },
     });
   }
   if (p === "/api/tags/suggest") {
@@ -113,7 +114,7 @@ function fakeFetch(path, options = {}) {
 /* ------------------------------------------------------------------ Bühne */
 
 const dom = new JSDOM(
-  `<!doctype html><html><body><div id="app" class="app"></div><div id="toasts"></div></body></html>`,
+  `<!doctype html><html><body><div id="app" class="app"></div><footer id="foot"></footer><div id="toasts"></div></body></html>`,
   { url: "http://localhost/", runScripts: "dangerously", pretendToBeVisual: true },
 );
 const { window } = dom;
@@ -162,6 +163,7 @@ await wait(80);
 
 check("Suchansicht gerendert", $(".search-view"));
 check("Kein Feld greift den Fokus ab", document.activeElement === document.body, document.activeElement.tagName);
+check("Fußzeile zeigt Anzahl und Stand", $("#foot").textContent.includes("3 Einträge") && $("#foot").textContent.includes("abc12345"), $("#foot").textContent);
 check("Treffer geladen", $$("a.result").length === 3, `(${$$("a.result").length})`);
 check("Altersfilter gefüllt", $("select.age") && $("select.age").options.length === 19);
 
@@ -277,6 +279,7 @@ const before = db.size;
 key($(".entry-form"), "s", { ctrlKey: true });
 await wait(150);
 check("Eintrag gespeichert", db.size === before + 1, `(${db.size})`);
+check("Fußzeile zählt mit", $("#foot").textContent.includes(`${db.size} Einträge`), $("#foot").textContent);
 const saved = [...db.values()].at(-1);
 check("Alle Felder übertragen",
   saved.title === "Silbenteppich" && saved.tags.length === 2 && saved.book === "Sprachförderung konkret" &&

@@ -16,6 +16,7 @@ const TOKEN_KEY = "ntm.token";
 const LISTVIEW_KEY = "ntm.listview";
 
 const app = document.getElementById("app");
+const foot = document.getElementById("foot");
 const toasts = document.getElementById("toasts");
 
 /* ------------------------------------------------------------------ Helfer */
@@ -694,6 +695,7 @@ async function renderDetail(id) {
     try {
       await api(`/api/entries/${encodeURIComponent(id)}`, { method: "DELETE" });
       toast("Eintrag gelöscht");
+      await loadMeta();
       go("/", null, { replace: true });
     } catch (error) {
       toast(error.message, "error");
@@ -833,6 +835,7 @@ async function renderForm(id) {
         ? await api("/api/entries", { method: "POST", body: data })
         : await api(`/api/entries/${encodeURIComponent(id)}`, { method: "PUT", body: data });
       toast("Gespeichert");
+      await loadMeta();
       guard.enabled = false;
       if (andNew) {
         // Buch und Altersbereich bleiben stehen – meist kommt der nächste
@@ -1016,6 +1019,23 @@ function showHelp() {
   dialog.showModal();
 }
 
+/* ------------------------------------------------------------- Fußzeile */
+
+function drawFooter() {
+  clear(foot);
+  if (!meta.app) return;
+  const dot = () => h("span", { class: "foot-dot", text: "·" });
+  append(foot, [
+    // "insgesamt", weil die Statuszeile darüber die Treffer der Suche zählt.
+    h("span", { text: `${meta.entries} ${meta.entries === 1 ? "Eintrag" : "Einträge"} insgesamt` }),
+    dot(),
+    h("span", { title: "Datenmodell und Programmstand", text: `ntm ${meta.app.version}` }),
+    meta.app.revision ? [dot(), h("code", { class: "rev", text: meta.app.revision })] : null,
+    dot(),
+    h("button", { type: "button", class: "linkish", text: "Tastenkürzel", onclick: showHelp }),
+  ]);
+}
+
 /* ----------------------------------------------------------------- Router */
 
 let meta = { ages: [], tags: [], books: [] };
@@ -1129,6 +1149,7 @@ document.addEventListener("keydown", (event) => {
 async function loadMeta() {
   try {
     meta = await api("/api/meta");
+    drawFooter();
     return true;
   } catch (error) {
     if (error.status !== 401) toast(error.message, "error");

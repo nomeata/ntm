@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import ages, auth, render, tags as tags_mod
+from . import ages, auth, render, tags as tags_mod, version
 from .config import Settings
 from .models import Entry, EntryInput
 from .query import SearchQuery, search
@@ -103,6 +103,7 @@ def create_app(settings: Settings) -> FastAPI:
                 for value in ages.axis()
             ],
             "entries": len(store.all()),
+            "app": version.info(),
         }
 
     @app.get("/api/tags/suggest", dependencies=guarded)
