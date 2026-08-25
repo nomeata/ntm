@@ -1,0 +1,10 @@
+{
+  "name": "ntm-frontend-test",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Headless-Durchlauf des ntm-Frontends (nur Entwicklung)",
+  "type": "module",
+  "devDependencies": {
+    "jsdom": "^28.0.0"
+  }
+}

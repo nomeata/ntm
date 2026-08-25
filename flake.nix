@@ -45,6 +45,7 @@
         system:
         {
           package = self.packages.${system}.default;
+          frontend = nixpkgs.legacyPackages.${system}.callPackage ./nix/frontend-test.nix { };
         }
         // nixpkgs.lib.optionalAttrs (nixpkgs.lib.hasSuffix "-linux" system) {
           # Baut die systemd-Unit einer Minimalkonfiguration – prüft also, dass
@@ -91,6 +92,7 @@
             packages = [
               python
               pkgs.nixfmt
+              pkgs.nodejs # nur für den Frontend-Test, siehe test/frontend
             ];
             shellHook = ''
               export PYTHONPATH="$PWD/src''${PYTHONPATH:+:$PYTHONPATH}"

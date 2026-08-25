@@ -173,13 +173,28 @@ funktioniert also auch auf dem Handy wie erwartet.
 
 ```console
 $ nix develop
-$ pytest
+$ pytest                                    # Backend
+$ node test/frontend/smoke.mjs              # Frontend
+$ nix flake check                           # beides, plus NixOS-Modul
 ```
 
-Abgedeckt sind die Kernlogik – Tag-Hierarchie und Typeahead
+**Backend**: die Kernlogik – Tag-Hierarchie und Typeahead
 (`tests/test_tags.py`), Altersachse inklusive „Eltern“ (`tests/test_ages.py`),
-Suche und Filterkombinationen (`tests/test_query.py`) –, die Ablage
+Suche und Filterkombinationen (`tests/test_query.py`) –, dazu die Ablage
 (`tests/test_store.py`) und die HTTP-Schnittstelle samt Anmeldung
-(`tests/test_api.py`).
+(`tests/test_api.py`). Dieselben Tests laufen beim `nix build` mit.
 
-Beim Nix-Build laufen dieselben Tests mit: `nix build` bzw. `nix flake check`.
+**Frontend**: `test/frontend/smoke.mjs` lädt `app.js` in eine jsdom-Seite,
+hängt ein nachgebautes Backend davor und spielt die Bedienung durch – vor
+allem die Tastaturwege vom leeren Formular bis zum gespeicherten Eintrag,
+Typeahead, Filter, Bearbeiten und Löschen. Vor dem ersten Lauf von Hand
+einmal `npm install` in `test/frontend` (`nix flake check` bringt jsdom über
+das eingecheckte Lockfile selbst mit).
+
+jsdom ist die einzige npm-Abhängigkeit im Repo und wird ausschließlich für
+diesen Test gebraucht: die Anwendung selbst kommt ohne JavaScript-Ökosystem
+aus, und `nix build` fasst npm nicht an.
+
+**NixOS-Modul**: `nix flake check` baut die systemd-Unit einer
+Minimalkonfiguration, damit Tippfehler im Modul nicht erst auf dem Server
+auffallen.
