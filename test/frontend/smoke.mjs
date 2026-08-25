@@ -180,18 +180,18 @@ key(document.activeElement, "ArrowDown");
 check("Pfeiltaste blättert weiter", document.activeElement === $$("a.result")[1]);
 
 // Tag-Filter über Typeahead
-const filterTagInput = $(".tagfilter input");
+const filterTagInput = $(".searchbar .tag-input");
 filterTagInput.focus();
 type(filterTagInput, "wortschatz");
 await wait(200);
-check("Vorschläge erscheinen", $$(".tagfilter .suggest-item").length > 0);
+check("Vorschläge erscheinen", $$(".searchbar .suggest-item").length > 0);
 key(filterTagInput, "Enter");
 await wait(220);
-check("Tag wird zum Chip", $(".tagfilter .chip-label") && $(".tagfilter .chip-label").textContent === "Sprache/Wortschatz");
+check("Tag wird zum Chip", $(".searchbar .chip-label") && $(".searchbar .chip-label").textContent === "Sprache/Wortschatz");
 check("Tag-Filter wirkt", $$("a.result").length === 1, `(${$$("a.result").length})`);
 key(filterTagInput, "Backspace");
 await wait(220);
-check("Backspace entfernt den Chip", !$(".tagfilter .chip"));
+check("Backspace entfernt den Chip", !$(".searchbar .chip"));
 
 // Neuer Eintrag – der Ablauf ohne Maus
 key(document.body, "n");
@@ -316,7 +316,7 @@ check("Zurück in der Suche", $(".search-view"));
 // Tag-Link aus der Detailansicht
 window.location.hash = "#/?tag=Sprache";
 await wait(200);
-check("Tag-Filter aus der URL", $(".tagfilter .chip-label") && $(".tagfilter .chip-label").textContent === "Sprache");
+check("Tag-Filter aus der URL", $(".searchbar .chip-label") && $(".searchbar .chip-label").textContent === "Sprache");
 check("Gefilterte Liste", $$("a.result").length === 2, `(${$$("a.result").length})`);
 
 // Hilfe

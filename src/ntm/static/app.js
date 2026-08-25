@@ -436,13 +436,13 @@ function createSearchView() {
   const q = h("input", {
     type: "search",
     class: "q",
-    placeholder: "Suchen …",
+    placeholder: "Volltext in Titel und Text …",
     autocomplete: "off",
     enterkeyhint: "search",
   });
 
   const tagField = createTagField({
-    placeholder: "Schlagwort …",
+    placeholder: "Schlagwort filtern …",
     onChange: (values) => {
       state.tags = values;
       commit();
@@ -459,52 +459,59 @@ function createSearchView() {
 
   const modeButton = h("button", {
     type: "button",
-    class: "btn ghost",
-    title: "Ansicht umschalten (v)",
+    class: "btn ghost mode",
+    title: "Ansicht umschalten (v oder Alt+V)",
     onclick: toggleMode,
   });
 
-  const status = h("div", { class: "status" });
+  const count = h("span", { class: "count" });
   const results = h("ol", { class: "results" });
 
-  const filters = h(
-    "div",
-    { class: "filters" },
-    h("div", { class: "filter tagfilter" }, tagField.root),
-    h("label", { class: "filter age-filter" }, h("span", { text: "Alter" }), ageSelect),
-    h("div", { class: "filter actions" }, modeButton, h("button", {
-      type: "button",
-      class: "btn ghost",
-      text: "Filter löschen",
-      onclick: () => {
-        state.q = "";
-        state.tags = [];
-        state.age = "";
-        q.value = "";
-        tagField.set([]);
-        ageSelect.value = "";
-        commit();
-        q.focus();
-      },
-    })),
-  );
+  const clearButton = h("button", {
+    type: "button",
+    class: "btn ghost clear",
+    text: "Filter löschen",
+    title: "Alle Filter zurücksetzen",
+    onclick: () => {
+      state.q = "";
+      state.tags = [];
+      state.age = "";
+      q.value = "";
+      tagField.set([]);
+      ageSelect.value = "";
+      commit();
+      tagField.input.focus();
+    },
+  });
 
+  // Kopf- und Filterzeile sind ein einziger klebender Block: sonst schöbe
+  // sich die Filterzeile beim Scrollen unter die Kopfzeile.
   const root = h(
     "div",
     { class: "view search-view" },
-    topbar(
-      h("div", { class: "combo grow" }, q),
-      h("button", {
-        type: "button",
-        class: "btn primary",
-        text: "＋ Neu",
-        title: "Neuer Eintrag (n)",
-        onclick: () => go("/new"),
-      }),
-      h("button", { type: "button", class: "btn ghost", text: "?", title: "Tastenkürzel (?)", onclick: showHelp }),
+    h(
+      "header",
+      { class: "searchbar" },
+      h(
+        "div",
+        { class: "searchbar-row" },
+        tagField.root,
+        h("button", {
+          type: "button",
+          class: "btn primary neu",
+          text: "+ Neu",
+          title: "Neuer Eintrag (n oder Alt+N)",
+          onclick: () => go("/new"),
+        }),
+      ),
+      h(
+        "div",
+        { class: "searchbar-row secondary" },
+        h("label", { class: "age-filter" }, h("span", { text: "Alter" }), ageSelect),
+        h("div", { class: "combo grow" }, q),
+      ),
     ),
-    filters,
-    status,
+    h("div", { class: "status" }, count, h("div", { class: "list-actions" }, clearButton, modeButton)),
     results,
   );
 
@@ -579,10 +586,10 @@ function createSearchView() {
   function drawResults(data) {
     clear(results);
     if (!data.entries.length) {
-      status.textContent = "Keine Treffer.";
+      count.textContent = "Keine Treffer.";
       return;
     }
-    status.textContent =
+    count.textContent =
       data.total === data.entries.length
         ? `${data.total} ${data.total === 1 ? "Eintrag" : "Einträge"}`
         : `${data.entries.length} von ${data.total} Einträgen`;
@@ -604,6 +611,7 @@ function createSearchView() {
               "div",
               { class: "result-meta" },
               entry.book ? h("span", { class: "meta-book", text: entry.book }) : null,
+              entry.book && entry.location ? h("span", { class: "meta-sep", text: "·" }) : null,
               entry.location ? h("span", { class: "meta-location", text: entry.location }) : null,
               ...entry.tags.map((tag) => h("span", { class: "tag", text: tag })),
             ),
@@ -614,6 +622,8 @@ function createSearchView() {
   }
 
   async function refresh() {
+    // Zurücksetzen anzubieten ergibt nur Sinn, wenn etwas gesetzt ist.
+    clearButton.hidden = !(state.q || state.tags.length || state.age);
     if (controller) controller.abort();
     controller = new AbortController();
     const search = params();
@@ -624,7 +634,7 @@ function createSearchView() {
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
       if (error.status !== 401) {
-        status.textContent = "";
+        count.textContent = "";
         toast(error.message, "error");
       }
     }

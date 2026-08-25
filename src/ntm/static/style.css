@@ -9,6 +9,7 @@
   --accent-soft: #dcece7;
   --danger: #a33a2c;
   --radius: 10px;
+  --control: 2.3rem;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.05);
   color-scheme: light dark;
 }
@@ -86,11 +87,19 @@ input[type="password"],
 textarea,
 select {
   width: 100%;
-  padding: 0.5rem 0.65rem;
+  padding: 0.4rem 0.65rem;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   outline-offset: 2px;
+}
+
+input[type="text"],
+input[type="search"],
+input[type="password"],
+select,
+.btn {
+  min-height: var(--control);
 }
 
 input:focus-visible,
@@ -114,7 +123,11 @@ textarea {
 }
 
 .btn {
-  padding: 0.5rem 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  padding: 0.4rem 0.8rem;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
@@ -148,23 +161,36 @@ textarea {
 
 /* --------------------------------------------------------------- Filter */
 
-.filters {
+/* Kopf- und Filterzeile kleben gemeinsam oben – als ein Block, damit beim
+   Scrollen nichts unter etwas anderem verschwindet. */
+.searchbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.6rem;
-  align-items: flex-start;
-  padding-bottom: 0.5rem;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 0 0.7rem;
+  margin-bottom: 0.4rem;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
 }
 
-.filter {
+.searchbar-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.searchbar-row.secondary {
+  flex-wrap: wrap;
+}
+
+.age-filter {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-}
-
-.tagfilter {
-  flex: 1 1 18rem;
-  min-width: 12rem;
+  white-space: nowrap;
 }
 
 .age-filter span {
@@ -176,25 +202,49 @@ textarea {
   width: auto;
 }
 
-.filter.actions {
-  margin-left: auto;
-  gap: 0.4rem;
-}
-
-.filter.actions .btn {
-  font-size: 0.9rem;
-  padding: 0.35rem 0.6rem;
-  color: var(--muted);
+.searchbar .q {
+  min-width: 8rem;
 }
 
 /* ------------------------------------------------------- Tags und Chips */
 
 .tagfield {
+  position: relative; /* Anker für die Vorschlagsliste */
   display: flex;
   flex-wrap: wrap;
-  gap: 0.35rem;
+  gap: 0.3rem;
   align-items: center;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
+  min-height: var(--control);
+  padding: 0.2rem 0.35rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.tagfield:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.tagfield .tag-input {
+  flex: 1 1 8rem;
+  min-width: 6rem;
+  min-height: 0;
+  padding: 0.2rem 0.25rem;
+  border: 0;
+  background: transparent;
+}
+
+.tagfield .tag-input:focus-visible {
+  outline: none;
+}
+
+/* Die Vorschlagsliste soll über der ganzen Feldbreite liegen, nicht nur
+   unter dem Eingabestummel hinter den Chips. */
+.tagfield .combo {
+  display: contents;
 }
 
 .chips {
@@ -221,11 +271,6 @@ textarea {
   padding: 0 0.25rem;
   line-height: 1;
   font-size: 1rem;
-}
-
-.tagfield .combo {
-  flex: 1 1 10rem;
-  min-width: 8rem;
 }
 
 .tag {
@@ -285,9 +330,32 @@ a.tag.link {
 /* --------------------------------------------------------- Trefferliste */
 
 .status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   color: var(--muted);
   font-size: 0.85rem;
-  padding: 0.25rem 0 0.5rem;
+  padding: 0.1rem 0 0.5rem;
+}
+
+.status .count {
+  flex: 1;
+}
+
+.list-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.list-actions .btn {
+  min-height: 1.9rem;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.btn[hidden] {
+  display: none;
 }
 
 .results {
@@ -343,6 +411,14 @@ a.result:hover {
 
 .meta-book {
   font-weight: 600;
+}
+
+.meta-sep {
+  opacity: 0.6;
+}
+
+.result-meta .tag:first-of-type {
+  margin-left: 0.2rem;
 }
 
 .results.compact a.result {
