@@ -44,23 +44,43 @@ in
       '';
     };
 
-    passwordFile = lib.mkOption {
-      type = lib.types.nullOr lib.types.path;
-      default = null;
-      example = "/run/secrets/ntm-password";
+    users = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      example = [
+        "anna@example.org"
+        "bea@example.org"
+      ];
       description = ''
-        Datei, die das Passwort enthält (erste Zeile, ohne Zeilenumbruch nötig).
-        Wird über systemd-Credentials eingelesen und landet nicht im Nix-Store.
+        E-Mail-Adressen der Nutzerinnen.  Angemeldet wird per Link in einer
+        E-Mail; jede Adresse bekommt ihr eigenes Unterverzeichnis im
+        Datenverzeichnis.  Die *erste* Adresse erbt beim Umstieg einen
+        etwaigen Altbestand aus der Ein-Benutzer-Zeit.
       '';
     };
 
-    password = lib.mkOption {
+    mailFrom = lib.mkOption {
+      type = lib.types.str;
+      example = "ntm@example.org";
+      description = "Absender der Login-Mails.";
+    };
+
+    baseUrl = lib.mkOption {
       type = lib.types.nullOr lib.types.str;
       default = null;
+      example = "https://material.example.org";
       description = ''
-        Passwort im Klartext.  Bequem, aber es landet im Nix-Store und ist
-        damit für alle lokalen Nutzer lesbar – im Zweifel {option}`passwordFile`
-        verwenden.
+        Öffentliche Adresse der App, für die Links in den Login-Mails.
+        Ohne Angabe wird sie aus dem Request abgeleitet (Host bzw.
+        X-Forwarded-Proto/-Host des Reverse-Proxys).
+      '';
+    };
+
+    sendmailPath = lib.mkOption {
+      type = lib.types.str;
+      default = "/run/wrappers/bin/sendmail";
+      description = ''
+        sendmail-Programm für den Mailversand.  Die Vorgabe passt zu jedem
+        lokalen MTA mit sendmail-Wrapper, etwa {option}`services.nullmailer`.
       '';
     };
 
@@ -86,18 +106,10 @@ in
   config = lib.mkIf cfg.enable {
     assertions = [
       {
-        assertion = (cfg.password == null) != (cfg.passwordFile == null);
-        message = ''
-          services.ntm: genau eine der Optionen `password` und `passwordFile`
-          muss gesetzt sein.
-        '';
+        assertion = cfg.users != [ ];
+        message = "services.ntm: `users` darf nicht leer sein – ohne Nutzerliste liefe die App ungeschützt.";
       }
     ];
-
-    warnings = lib.optional (cfg.password != null) ''
-      services.ntm.password landet im Nix-Store und ist dort für alle lesbar.
-      Besser: services.ntm.passwordFile.
-    '';
 
     users.users = lib.mkIf (cfg.user == "ntm") {
       ntm = {
@@ -124,11 +136,11 @@ in
         NTM_DATA_DIR = cfg.dataDir;
         NTM_HOST = cfg.address;
         NTM_PORT = toString cfg.port;
+        NTM_USERS = lib.concatStringsSep "," cfg.users;
+        NTM_MAIL_FROM = cfg.mailFrom;
+        NTM_SENDMAIL = cfg.sendmailPath;
       }
-      // lib.optionalAttrs (cfg.password != null) { NTM_PASSWORD = cfg.password; }
-      // lib.optionalAttrs (cfg.passwordFile != null) {
-        NTM_PASSWORD_FILE = "%d/ntm-password";
-      };
+      // lib.optionalAttrs (cfg.baseUrl != null) { NTM_BASE_URL = cfg.baseUrl; };
 
       serviceConfig = {
         ExecStart = lib.getExe cfg.package;
@@ -138,46 +150,29 @@ in
         Restart = "on-failure";
         RestartSec = 5;
 
-        LoadCredential = lib.mkIf (cfg.passwordFile != null) [
-          "ntm-password:${cfg.passwordFile}"
+        # Härtung – der Dienst braucht sein Datenverzeichnis und den Weg zur
+        # Mail-Queue.  Angelegt wird das Datenverzeichnis über systemd.tmpfiles
+        # (siehe oben), damit für jedes dataDir derselbe Weg gilt.
+        #
+        # Bewusste Grenze: Die Login-Mails gehen über den sendmail-Wrapper des
+        # lokalen MTAs, und der ist setuid/setgid (bei nullmailer: um in die
+        # Queue schreiben zu dürfen).  Deshalb kein NoNewPrivileges – und auch
+        # keine der seccomp-Optionen (SystemCallFilter, RestrictNamespaces,
+        # Private*/Protect*-Kernel-Optionen …), denn jede davon erzwingt bei
+        # gesetztem User= wiederum NoNewPrivileges.
+        ReadWritePaths = [
+          cfg.dataDir
+          "-/var/spool/nullmailer"
         ];
-
-        # Härtung – der Dienst braucht nur sein Datenverzeichnis.
-        # Angelegt wird es über systemd.tmpfiles (siehe oben), damit für jedes
-        # dataDir derselbe Weg gilt.
-        ReadWritePaths = [ cfg.dataDir ];
         CapabilityBoundingSet = [ "" ];
         DevicePolicy = "closed";
-        LockPersonality = true;
-        MemoryDenyWriteExecute = true;
-        NoNewPrivileges = true;
-        PrivateDevices = true;
+        NoNewPrivileges = false;
         PrivateTmp = true;
-        PrivateUsers = true;
         ProcSubset = "pid";
-        ProtectClock = true;
         ProtectControlGroups = true;
         ProtectHome = true;
-        ProtectHostname = true;
-        ProtectKernelLogs = true;
-        ProtectKernelModules = true;
-        ProtectKernelTunables = true;
         ProtectProc = "invisible";
         ProtectSystem = "strict";
-        RestrictAddressFamilies = [
-          "AF_INET"
-          "AF_INET6"
-          "AF_UNIX"
-        ];
-        RestrictNamespaces = true;
-        RestrictRealtime = true;
-        RestrictSUIDSGID = true;
-        SystemCallArchitectures = "native";
-        SystemCallFilter = [
-          "@system-service"
-          "~@privileged"
-          "~@resources"
-        ];
         UMask = "0077";
       };
     };

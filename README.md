@@ -1,9 +1,10 @@
 # ntm – Verwaltung von Therapiematerialien
 
-Eine kleine Webanwendung für genau eine Nutzerin: Materialien erfassen (Titel,
-Beschreibung in Markdown, Altersbereich, Schlagworte, Fundort) und später
-schnell wiederfinden. Kein Datenbankserver – ein Verzeichnis mit einer
-JSON-Datei pro Eintrag.
+Eine kleine Webanwendung für eine Handvoll Nutzerinnen: Materialien erfassen
+(Titel, Beschreibung in Markdown, Altersbereich, Schlagworte, Fundort) und
+später schnell wiederfinden. Kein Datenbankserver – pro Nutzerin ein
+Verzeichnis mit einer JSON-Datei pro Eintrag. Angemeldet wird ohne Passwort,
+per Link in einer E-Mail.
 
 ## Auf einen Blick
 
@@ -12,8 +13,10 @@ JSON-Datei pro Eintrag.
 * **Frontend**: eine Single-Page-Anwendung aus Vanilla-JavaScript, kein
   Build-Schritt, keine npm-Abhängigkeiten. Das hält das Nix-Paket zu einem
   reinen Python-Paket und lässt der Tastatursteuerung freie Hand.
-* **Speicher**: `<Datenverzeichnis>/<id>.json`, atomar geschrieben. Die Dateien
-  sind von Hand editierbar; Änderungen von außen merkt der Server selbst.
+* **Speicher**: `<Datenverzeichnis>/<adresse>/<id>.json`, atomar geschrieben.
+  Die Dateien sind von Hand editierbar; Änderungen von außen merkt der Server
+  selbst. Jede Nutzerin hat ihren eigenen Bestand – auch Schlagworte und
+  Bücherlisten sind getrennt.
 
 ## Datenmodell
 
@@ -75,22 +78,27 @@ $ python -m venv venv && ./venv/bin/pip install -e .
 $ NTM_DATA_DIR=./data ./venv/bin/ntm
 ```
 
-Ohne gesetztes Passwort läuft die App **ungeschützt** (praktisch zum
-Entwickeln, sie warnt beim Start). Mit Passwort:
+Ohne gesetzte Nutzerliste läuft die App **ungeschützt** und mit einem
+einzigen Bestand direkt im Datenverzeichnis (praktisch zum Entwickeln, sie
+warnt beim Start). Mit Nutzerliste verlangt sie die Anmeldung per Mail-Link;
+zum lokalen Ausprobieren kann `NTM_SENDMAIL` auf ein Skript zeigen, das die
+Mail einfach in eine Datei schreibt:
 
 ```console
-$ NTM_PASSWORD=geheim NTM_DATA_DIR=./data python -m ntm
+$ NTM_USERS=anna@example.org NTM_MAIL_FROM=ntm@example.org python -m ntm
 ```
 
 ### Konfiguration
 
-| Variable            | CLI                | Vorgabe     |
-| ------------------- | ------------------ | ----------- |
-| `NTM_DATA_DIR`      | `--data-dir`       | `./data`    |
-| `NTM_HOST`          | `--host`           | `127.0.0.1` |
-| `NTM_PORT`          | `--port`           | `8123`      |
-| `NTM_PASSWORD`      | –                  | leer        |
-| `NTM_PASSWORD_FILE` | `--password-file`  | leer        |
+| Variable        | CLI          | Vorgabe                          |
+| --------------- | ------------ | -------------------------------- |
+| `NTM_DATA_DIR`  | `--data-dir` | `./data`                         |
+| `NTM_HOST`      | `--host`     | `127.0.0.1`                      |
+| `NTM_PORT`      | `--port`     | `8123`                           |
+| `NTM_USERS`     | –            | leer (Adressen, Komma-getrennt)  |
+| `NTM_MAIL_FROM` | –            | leer                             |
+| `NTM_SENDMAIL`  | –            | `sendmail`                       |
+| `NTM_BASE_URL`  | –            | leer (dann aus dem Request)      |
 
 ## Deployment auf NixOS
 
@@ -107,8 +115,15 @@ $ NTM_PASSWORD=geheim NTM_DATA_DIR=./data python -m ntm
           services.ntm = {
             enable = true;
             port = 8123;
-            dataDir = "/var/lib/ntm";
-            passwordFile = "/run/secrets/ntm-password";  # z. B. via sops-nix/agenix
+            users = [ "anna@example.org" ];
+            mailFrom = "ntm@example.org";
+          };
+
+          # Für die Login-Mails: irgendein lokaler MTA mit sendmail-Wrapper.
+          services.nullmailer = {
+            enable = true;
+            config.me = "example.org";
+            # … plus Zugangsdaten zum Smarthost, siehe nullmailer-Doku.
           };
 
           # Empfohlen: TLS davor.
@@ -132,22 +147,48 @@ an setuptools < 77, das die Lizenzangabe nach PEP 639 noch nicht kennt. Wenn
 es auf einem älteren System daran hakt: die `follows`-Zeile weglassen, dann
 bringt der Dienst sein eigenes nixpkgs mit.
 
-Optionen: `enable`, `package`, `address`, `port`, `dataDir`, `passwordFile`,
-`password`, `user`, `group`, `openFirewall`. Genau eine der beiden Optionen
-`password` und `passwordFile` muss gesetzt sein; `passwordFile` wird über
-systemd-Credentials eingelesen und landet nicht im Nix-Store.
+Optionen: `enable`, `package`, `address`, `port`, `dataDir`, `users`,
+`mailFrom`, `baseUrl`, `sendmailPath`, `user`, `group`, `openFirewall`.
+`users` darf nicht leer sein. `baseUrl` bestimmt die Adresse in den
+Login-Links; ohne Angabe wird sie aus dem Request abgeleitet, was hinter
+nginx mit `recommendedProxySettings` (oder gesetztem `Host`-Header)
+funktioniert.
 
-Der Dienst läuft als eigener Systembenutzer mit den üblichen
-systemd-Härtungen und darf nur in `dataDir` schreiben.
+Der Dienst läuft als eigener Systembenutzer mit systemd-Härtungen und darf
+nur in `dataDir` und in die Mail-Queue schreiben. Eine bewusste Grenze: der
+sendmail-Wrapper des MTAs ist setuid/setgid, deshalb kommt der Dienst ohne
+`NoNewPrivileges` und ohne seccomp-Filter aus – jede dieser Optionen würde
+den Wrapper wirkungslos machen und den Mailversand brechen.
 
-### Sicherheit
+### Anmeldung und Sicherheit
 
-Die Anmeldung ist absichtlich minimal: ein Passwort, kein Benutzername, keine
-Rollen. Aus dem Passwort wird ein Token abgeleitet, das im Local Storage des
-Browsers liegt; der Server hält dafür keinen Zustand. Beim Login geht das
-Passwort im Klartext über die Verbindung – **die App gehört deshalb hinter
+Keine Passwörter: Auf der Login-Seite gibt man seine E-Mail-Adresse an, und
+wenn sie in `users` steht, kommt eine Mail mit einem Link, der anmeldet. Das
+Token dahinter ist ein HMAC über die Adresse mit einem Schlüssel, den der
+Server beim ersten Start in `<Datenverzeichnis>/.secret` ablegt – der Server
+hält keine Sessions, ein Neustart wirft niemanden hinaus, und das Token läuft
+bewusst nie ab. Konsequenzen, die man kennen sollte:
+
+* Wer das Postfach einer eingetragenen Adresse lesen kann, kann sich
+  anmelden – auch über eine alte Login-Mail im Archiv. (Das ist bei jedem
+  „Passwort vergessen“-Ablauf genauso.)
+* Abmelden einer einzelnen Person: Adresse aus `users` nehmen, ihr Token ist
+  sofort ungültig. `.secret` löschen meldet alle ab.
+* Der Login-Endpunkt antwortet für bekannte und unbekannte Adressen gleich
+  und verschickt pro Adresse höchstens eine Mail pro Minute.
+
+Das Token steht im Link hinter `#` (erreicht also nie Server- oder
+Proxy-Logs) und wandert dann in den Local Storage des Browsers. Über die
+Verbindung geht es bei jeder Anfrage mit – **die App gehört deshalb hinter
 TLS**. Die Voreinstellung `address = "127.0.0.1"` erwartet genau das: einen
 Reverse-Proxy davor.
+
+### Umstieg von der Ein-Benutzer-Version
+
+Liegen noch JSON-Dateien direkt im Datenverzeichnis und existiert für die
+erste Adresse aus `users` noch kein Unterverzeichnis, verschiebt der Server
+die Dateien beim Start dorthin – der Altbestand gehört danach der ersten
+Nutzerin der Liste.
 
 ### Sicherung
 
@@ -183,7 +224,8 @@ Schlagwortfilter, `/` Volltextsuche, `v` Ansicht, `?` Hilfe. Steht der Cursor
 doch in einem Feld, tun es dieselben Befehle mit Alt (`Alt+N`, `Alt+T`,
 `Alt+F`, `Alt+V`, `Alt+H`) – oder `Esc`, das den Fokus wieder freigibt.
 
-Ganz unten steht eine Fußzeile mit der Zahl der Einträge und der git-Revision
+Ganz unten steht eine Fußzeile mit der Zahl der Einträge, der angemeldeten
+Nutzerin (samt Abmelden-Knopf) und der git-Revision
 des laufenden Programms, verlinkt auf den Commit bei GitHub – so lässt sich von
 der laufenden Instanz aus nachsehen, welcher Stand da eigentlich läuft.
 Versionsnummern gibt es bewusst keine. Beim Nix-Deployment kommt die Revision
@@ -203,9 +245,10 @@ $ nix flake check                           # beides, plus NixOS-Modul
 
 **Backend**: die Kernlogik – Tag-Hierarchie und Typeahead
 (`tests/test_tags.py`), Altersachse inklusive „Eltern“ (`tests/test_ages.py`),
-Suche und Filterkombinationen (`tests/test_query.py`) –, dazu die Ablage
-(`tests/test_store.py`) und die HTTP-Schnittstelle samt Anmeldung
-(`tests/test_api.py`). Dieselben Tests laufen beim `nix build` mit.
+Suche und Filterkombinationen (`tests/test_query.py`) –, dazu die Ablage samt
+Migration (`tests/test_store.py`), die magic-link-Tokens (`tests/test_auth.py`)
+und die HTTP-Schnittstelle samt Anmeldung, Mailversand und Trennung der
+Nutzerinnen (`tests/test_api.py`). Dieselben Tests laufen beim `nix build` mit.
 
 **Frontend**: `test/frontend/smoke.mjs` lädt `app.js` in eine jsdom-Seite,
 hängt ein nachgebautes Backend davor und spielt die Bedienung durch – vor

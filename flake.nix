@@ -67,10 +67,15 @@
                     fsType = "ext4";
                   };
                   system.stateVersion = "25.11";
+                  services.nullmailer = {
+                    enable = true;
+                    config.me = "example.org";
+                  };
                   services.ntm = {
                     enable = true;
                     port = 8123;
-                    passwordFile = "/run/secrets/ntm-password";
+                    users = [ "anna@example.org" ];
+                    mailFrom = "ntm@example.org";
                   };
                 }
               ];

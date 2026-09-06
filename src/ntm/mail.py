@@ -34,7 +34,9 @@ def login_mail(mail_from: str, to: str, link: str) -> EmailMessage:
     message["To"] = to
     message["Subject"] = SUBJECT
     message["Auto-Submitted"] = "auto-generated"
-    message.set_content(BODY.format(link=link))
+    # 8bit statt quoted-printable, damit der Link auch im Rohtext eine
+    # ungebrochene Zeile bleibt.
+    message.set_content(BODY.format(link=link), cte="8bit")
     return message
 
 
