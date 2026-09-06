@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import logging
+import time
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -11,17 +13,23 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import ages, auth, render, tags as tags_mod, version
+from . import ages, auth, mail, render, tags as tags_mod, version
 from .config import Settings
 from .models import Entry, EntryInput
 from .query import SearchQuery, search
-from .store import Store, valid_id
+from .store import Store, migrate_legacy, valid_id
+
+log = logging.getLogger(__name__)
 
 STATIC_DIR = Path(__file__).parent / "static"
 
+# Frühestens alle 60 s eine weitere Mail an dieselbe Adresse – der Endpoint
+# ist unauthentifiziert und soll kein Mail-Katapult sein.
+MAIL_COOLDOWN = 60.0
+
 
 class LoginRequest(BaseModel):
-    password: str = ""
+    email: str = ""
 
 
 def _summary(entry: Entry) -> dict[str, Any]:
@@ -46,46 +54,94 @@ def _detail(entry: Entry) -> dict[str, Any]:
 
 
 def create_app(settings: Settings) -> FastAPI:
-    store = Store(settings.data_dir)
     app = FastAPI(title="ntm – Therapiematerialien", docs_url=None, redoc_url=None)
     app.state.settings = settings
-    app.state.store = store
 
-    async def require_auth(
+    secret = b""
+    if settings.auth_required:
+        settings.data_dir.mkdir(parents=True, exist_ok=True)
+        secret = auth.load_secret(settings.data_dir)
+        migrate_legacy(settings.data_dir, settings.users[0])
+
+    # Ein Store pro Nutzerin (bzw. einer im offenen Modus), erst bei Bedarf.
+    stores: dict[str | None, Store] = {}
+
+    def store_for(user: str | None) -> Store:
+        if user not in stores:
+            directory = settings.data_dir if user is None else settings.data_dir / user
+            stores[user] = Store(directory)
+        return stores[user]
+
+    async def current_user(
         authorization: Annotated[str | None, Header()] = None,
-    ) -> None:
+    ) -> str | None:
         if not settings.auth_required:
-            return
+            return None
         token = ""
         if authorization and authorization.lower().startswith("bearer "):
             token = authorization[7:].strip()
-        if not auth.token_valid(token, settings.password):
+        user = auth.token_user(secret, token, settings.users)
+        if user is None:
             raise HTTPException(status_code=401, detail="nicht angemeldet")
+        return user
 
-    guarded = [Depends(require_auth)]
+    def current_store(user: str | None = Depends(current_user)) -> Store:
+        return store_for(user)
 
     # -- Anmeldung -----------------------------------------------------
+
+    last_mail: dict[str, float] = {}
+
+    def base_url(request: Request) -> str:
+        if settings.base_url:
+            return settings.base_url
+        proto = request.headers.get("x-forwarded-proto") or request.url.scheme
+        host = (
+            request.headers.get("x-forwarded-host")
+            or request.headers.get("host")
+            or request.url.netloc
+        )
+        return f"{proto.split(',')[0].strip()}://{host.split(',')[0].strip()}"
 
     @app.get("/api/auth")
     async def auth_info() -> dict[str, bool]:
         return {"required": settings.auth_required}
 
     @app.post("/api/login")
-    async def login(request: LoginRequest) -> dict[str, str]:
+    async def login(request: Request, data: LoginRequest) -> dict[str, Any]:
+        # Die Antwort ist absichtlich immer dieselbe – ob eine Adresse zur
+        # Nutzerliste gehört, lässt sich von außen nicht abfragen.
+        generic: dict[str, Any] = {"sent": settings.auth_required}
         if not settings.auth_required:
-            return {"token": ""}
-        if not auth.password_valid(request.password, settings.password):
-            await asyncio.sleep(0.5)  # bremst stumpfes Durchprobieren
-            raise HTTPException(status_code=401, detail="falsches Passwort")
-        return {"token": auth.session_token(settings.password)}
+            return generic
+        email = data.email.strip().lower()
+        if email not in settings.users:
+            return generic
+        now = time.monotonic()
+        previous = last_mail.get(email)
+        if previous is not None and now - previous < MAIL_COOLDOWN:
+            return generic
+        last_mail[email] = now
+        link = f"{base_url(request)}/#login={auth.token_for(secret, email)}"
+        message = mail.login_mail(settings.mail_from, email, link)
+        try:
+            await asyncio.to_thread(mail.send, settings.sendmail, message)
+        except Exception:
+            log.exception("Login-Mail an %s fehlgeschlagen", email)
+            last_mail.pop(email, None)  # ein neuer Versuch darf sofort senden
+        return generic
 
     # -- Stammdaten ----------------------------------------------------
 
-    @app.get("/api/meta", dependencies=guarded)
-    async def meta() -> dict[str, Any]:
+    @app.get("/api/meta")
+    async def meta(
+        user: str | None = Depends(current_user),
+        store: Store = Depends(current_store),
+    ) -> dict[str, Any]:
         universe = store.tag_universe()
         books = store.books()
         return {
+            "user": user,
             "tags": [
                 {"tag": tag, "count": count}
                 for tag, count in sorted(
@@ -106,9 +162,11 @@ def create_app(settings: Settings) -> FastAPI:
             "build": version.info(),
         }
 
-    @app.get("/api/tags/suggest", dependencies=guarded)
+    @app.get("/api/tags/suggest")
     async def suggest_tags(
-        q: str = "", limit: int = Query(default=12, ge=1, le=50)
+        q: str = "",
+        limit: int = Query(default=12, ge=1, le=50),
+        store: Store = Depends(current_store),
     ) -> dict[str, Any]:
         suggestions = tags_mod.suggest(store.tag_universe(), q, limit=limit)
         return {
@@ -117,9 +175,11 @@ def create_app(settings: Settings) -> FastAPI:
             ]
         }
 
-    @app.get("/api/books/suggest", dependencies=guarded)
+    @app.get("/api/books/suggest")
     async def suggest_books(
-        q: str = "", limit: int = Query(default=12, ge=1, le=50)
+        q: str = "",
+        limit: int = Query(default=12, ge=1, le=50),
+        store: Store = Depends(current_store),
     ) -> dict[str, Any]:
         from . import text as text_mod
 
@@ -140,12 +200,13 @@ def create_app(settings: Settings) -> FastAPI:
 
     # -- Suche ---------------------------------------------------------
 
-    @app.get("/api/search", dependencies=guarded)
+    @app.get("/api/search")
     async def do_search(
         q: str = "",
         tag: Annotated[list[str], Query()] = [],
         age: str | None = None,
         limit: int = Query(default=200, ge=1, le=2000),
+        store: Store = Depends(current_store),
     ) -> dict[str, Any]:
         try:
             wanted_age = ages.parse_age(age) if age not in (None, "") else None
@@ -164,8 +225,10 @@ def create_app(settings: Settings) -> FastAPI:
 
     # -- Einträge ------------------------------------------------------
 
-    @app.get("/api/entries/{entry_id}", dependencies=guarded)
-    async def get_entry(entry_id: str) -> dict[str, Any]:
+    @app.get("/api/entries/{entry_id}")
+    async def get_entry(
+        entry_id: str, store: Store = Depends(current_store)
+    ) -> dict[str, Any]:
         if not valid_id(entry_id):
             raise HTTPException(status_code=404, detail="unbekannter Eintrag")
         entry = store.get(entry_id)
@@ -173,14 +236,18 @@ def create_app(settings: Settings) -> FastAPI:
             raise HTTPException(status_code=404, detail="unbekannter Eintrag")
         return _detail(entry)
 
-    @app.post("/api/entries", dependencies=guarded, status_code=201)
-    async def create_entry(data: EntryInput) -> dict[str, Any]:
+    @app.post("/api/entries", status_code=201)
+    async def create_entry(
+        data: EntryInput, store: Store = Depends(current_store)
+    ) -> dict[str, Any]:
         if not data.title.strip():
             raise HTTPException(status_code=422, detail="Titel fehlt")
         return _detail(store.create(data))
 
-    @app.put("/api/entries/{entry_id}", dependencies=guarded)
-    async def update_entry(entry_id: str, data: EntryInput) -> dict[str, Any]:
+    @app.put("/api/entries/{entry_id}")
+    async def update_entry(
+        entry_id: str, data: EntryInput, store: Store = Depends(current_store)
+    ) -> dict[str, Any]:
         if not valid_id(entry_id):
             raise HTTPException(status_code=404, detail="unbekannter Eintrag")
         if not data.title.strip():
@@ -190,8 +257,10 @@ def create_app(settings: Settings) -> FastAPI:
             raise HTTPException(status_code=404, detail="unbekannter Eintrag")
         return _detail(entry)
 
-    @app.delete("/api/entries/{entry_id}", dependencies=guarded)
-    async def delete_entry(entry_id: str) -> dict[str, bool]:
+    @app.delete("/api/entries/{entry_id}")
+    async def delete_entry(
+        entry_id: str, store: Store = Depends(current_store)
+    ) -> dict[str, bool]:
         if not valid_id(entry_id) or not store.delete(entry_id):
             raise HTTPException(status_code=404, detail="unbekannter Eintrag")
         return {"deleted": True}

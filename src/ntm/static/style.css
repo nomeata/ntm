@@ -83,7 +83,7 @@ button {
 
 input[type="text"],
 input[type="search"],
-input[type="password"],
+input[type="email"],
 textarea,
 select {
   width: 100%;
@@ -96,7 +96,7 @@ select {
 
 input[type="text"],
 input[type="search"],
-input[type="password"],
+input[type="email"],
 select,
 .btn {
   min-height: var(--control);
@@ -596,6 +596,16 @@ a.result:hover {
   font-size: 0.9rem;
 }
 
+.login-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.login-note:empty {
+  display: none;
+}
+
 /* ------------------------------------------------------ Hilfe & Toasts */
 
 dialog.help {
@@ -658,6 +668,10 @@ kbd {
 
 .foot-dot {
   opacity: 0.5;
+}
+
+.foot-user {
+  overflow-wrap: anywhere;
 }
 
 .appfoot .rev {

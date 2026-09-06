@@ -101,3 +101,29 @@ def test_ids_sind_zeitlich_sortierbar(tmp_path):
     stamps = [entry_id[:10] for entry_id in ids]  # Zeitanteil, danach Zufall
     assert stamps == sorted(stamps)
     assert len(set(ids)) == 5
+
+
+def test_migration_weist_altbestand_der_ersten_nutzerin_zu(tmp_path):
+    from ntm.store import migrate_legacy
+
+    old = Store(tmp_path)
+    old.create(make_input(title="Alt 1"))
+    old.create(make_input(title="Alt 2"))
+    (tmp_path / ".secret").write_text("bleibt liegen\n")
+
+    assert migrate_legacy(tmp_path, "anna@example.org") == 2
+    assert list(tmp_path.glob("*.json")) == []
+    assert (tmp_path / ".secret").exists()
+    moved = Store(tmp_path / "anna@example.org")
+    assert {item.entry.title for item in moved.all()} == {"Alt 1", "Alt 2"}
+
+    # Ein zweiter Lauf fasst nichts mehr an, auch wenn wieder Dateien auftauchen.
+    Store(tmp_path).create(make_input(title="Streuner"))
+    assert migrate_legacy(tmp_path, "anna@example.org") == 0
+
+
+def test_migration_ohne_altbestand_tut_nichts(tmp_path):
+    from ntm.store import migrate_legacy
+
+    assert migrate_legacy(tmp_path, "anna@example.org") == 0
+    assert not (tmp_path / "anna@example.org").exists()

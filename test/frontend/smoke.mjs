@@ -37,6 +37,9 @@ const detail = (e) => ({ ...summary(e), text_html: e.text ? `<p>${e.text}</p>` :
 
 const calls = [];
 
+const authState = { required: false, user: null, token: "" };
+const loginMails = [];
+
 function respond(data, status = 200) {
   return Promise.resolve({
     ok: status < 400,
@@ -52,9 +55,18 @@ function fakeFetch(path, options = {}) {
   const p = url.pathname;
   const q = url.searchParams;
 
-  if (p === "/api/auth") return respond({ required: false });
+  if (p === "/api/auth") return respond({ required: authState.required });
+  if (p === "/api/login" && method === "POST") {
+    loginMails.push(JSON.parse(options.body).email);
+    return respond({ sent: authState.required });
+  }
   if (p === "/api/meta") {
+    if (authState.required) {
+      const header = (options.headers || {}).Authorization || "";
+      if (header !== `Bearer ${authState.token}`) return respond({ detail: "nicht angemeldet" }, 401);
+    }
     return respond({
+      user: authState.required ? authState.user : null,
       ages: AGES,
       tags: [
         { tag: "Sprache", count: 2 },
@@ -346,6 +358,66 @@ if (typeof window.HTMLDialogElement.prototype.showModal === "function") {
   await wait(40);
   check("Hilfe öffnet sich", $("dialog.help"));
 }
+
+/* ------------------------------------------------- Anmeldung (magic link) */
+
+async function loginStage(url) {
+  const stage = new JSDOM(
+    `<!doctype html><html><body><div id="app" class="app"></div><footer id="foot"></footer><div id="toasts"></div></body></html>`,
+    { url, runScripts: "dangerously", pretendToBeVisual: true },
+  );
+  stage.window.fetch = fakeFetch;
+  stage.window.matchMedia = () => ({ matches: true, addEventListener() {}, removeEventListener() {} });
+  stage.window.confirm = () => true;
+  const stageScript = stage.window.document.createElement("script");
+  stageScript.textContent = fs.readFileSync(APP, "utf8");
+  stage.window.document.body.appendChild(stageScript);
+  await wait(120);
+  return stage;
+}
+
+authState.required = true;
+authState.user = "anna@example.org";
+authState.token = "tok123";
+
+{
+  // Ohne Token: Login-Formular, Absenden fordert die Mail an
+  const stage = await loginStage("http://localhost/");
+  const d = stage.window.document;
+  check("Login-Formular ohne Token", d.querySelector("form.login"));
+  const email = d.querySelector("form.login input[type=email]");
+  email.value = "anna@example.org";
+  d.querySelector("form.login").dispatchEvent(
+    new stage.window.Event("submit", { bubbles: true, cancelable: true }),
+  );
+  await wait(80);
+  check("Login-Anfrage abgesetzt", loginMails.length === 1 && loginMails[0] === "anna@example.org", JSON.stringify(loginMails));
+  check("Versandhinweis erscheint", (d.querySelector(".login-note") || {}).textContent?.includes("E-Mail"), d.body.textContent.slice(0, 200));
+}
+
+{
+  // Magic link in der URL: Token übernehmen, anmelden, Fußzeile zeigt Nutzerin
+  const stage = await loginStage("http://localhost/#login=tok123");
+  const w = stage.window;
+  const d = w.document;
+  check("Magic link meldet an", d.querySelector(".search-view"), d.body.innerHTML.slice(0, 200));
+  check("Token gespeichert", w.localStorage.getItem("ntm.token") === "tok123");
+  check("URL aufgeräumt", !w.location.href.includes("login="), w.location.href);
+  const footUser = d.querySelector("#foot .foot-user");
+  check("Fußzeile zeigt Nutzerin", footUser && footUser.textContent === "anna@example.org", d.getElementById("foot").textContent);
+  const logoutButton = [...d.querySelectorAll("#foot button.linkish")].find((b) => b.textContent === "abmelden");
+  check("Abmelden-Knopf vorhanden", logoutButton);
+  if (logoutButton) {
+    logoutButton.click();
+    await wait(40);
+    check("Abmelden zeigt das Login-Formular", d.querySelector("form.login"));
+    check("Abmelden entfernt das Token", w.localStorage.getItem("ntm.token") === null);
+    check("Abmelden leert die Fußzeile", d.getElementById("foot").textContent === "");
+  }
+}
+
+authState.required = false;
+authState.user = null;
 
 /* --------------------------------------------------------------- Ergebnis */
 

@@ -393,12 +393,15 @@ function iconButton(label, title, onclick, extra = "") {
 
 function renderLogin() {
   document.title = "Anmelden – Therapiematerialien";
-  const password = h("input", {
-    type: "password",
-    placeholder: "Passwort",
-    autofocus: true,
-    autocomplete: "current-password",
+  clear(foot);
+  const email = h("input", {
+    type: "email",
+    placeholder: "name@example.org",
+    autocomplete: "email",
+    required: true,
   });
+  const submit = h("button", { type: "submit", class: "btn primary", text: "Anmelde-Link schicken" });
+  const note = h("p", { class: "login-note" });
   const form = h(
     "form",
     {
@@ -406,22 +409,30 @@ function renderLogin() {
       onsubmit: async (event) => {
         event.preventDefault();
         try {
-          const data = await api("/api/login", { method: "POST", body: { password: password.value } });
-          session.token = data.token || "";
-          localStorage.setItem(TOKEN_KEY, session.token);
-          if (await loadMeta()) route();
+          await api("/api/login", { method: "POST", body: { email: email.value } });
+          // Absichtlich dieselbe Antwort für bekannte und unbekannte Adressen.
+          note.textContent =
+            "Wenn die Adresse bekannt ist, ist jetzt eine E-Mail unterwegs. " +
+            "Der Link darin meldet dich an.";
+          submit.textContent = "Noch einmal schicken";
         } catch (error) {
-          toast(error.status === 401 ? "Falsches Passwort" : error.message, "error");
-          password.select();
+          toast(error.message, "error");
         }
       },
     },
     h("h1", { text: "Therapiematerialien" }),
-    h("label", { text: "Passwort" }, password),
-    h("button", { type: "submit", class: "btn primary", text: "Anmelden" }),
+    h("label", { text: "E-Mail-Adresse" }, email),
+    submit,
+    note,
   );
   mount(form);
-  password.focus();
+  email.focus();
+}
+
+function logout() {
+  session.token = "";
+  localStorage.removeItem(TOKEN_KEY);
+  renderLogin();
 }
 
 /* ------------------------------------------------------------------ Suche */
@@ -1038,6 +1049,13 @@ function drawFooter() {
       : h("code", { class: "rev", text: revision }),
     dot(),
     h("button", { type: "button", class: "linkish", text: "Tastenkürzel", onclick: showHelp }),
+    ...(meta.user
+      ? [
+          dot(),
+          h("span", { class: "foot-user", text: meta.user }),
+          h("button", { type: "button", class: "linkish", text: "abmelden", onclick: logout }),
+        ]
+      : []),
   ]);
 }
 
@@ -1163,6 +1181,13 @@ async function loadMeta() {
 }
 
 async function boot() {
+  // Ein magic link aus der Login-Mail? Token übernehmen, URL aufräumen.
+  const loginMatch = location.hash.match(/^#login=(.+)$/);
+  if (loginMatch) {
+    session.token = decodeURIComponent(loginMatch[1]);
+    localStorage.setItem(TOKEN_KEY, session.token);
+    history.replaceState(null, "", location.pathname + location.search);
+  }
   try {
     const info = await fetch("/api/auth").then((response) => response.json());
     session.required = Boolean(info.required);

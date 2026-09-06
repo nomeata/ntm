@@ -1,27 +1,67 @@
 """HTTP-Schnittstelle."""
 
+import email
+import email.policy
+import re
+
 import pytest
 from fastapi.testclient import TestClient
 
+from ntm import auth
 from ntm.app import create_app
-from ntm.auth import session_token
 from ntm.config import Settings
 
-PASSWORD = "geheim"
+USER = "anna@example.org"
+OTHER = "bea@example.org"
+
+
+def make_settings(data_dir, **kwargs):
+    values = dict(
+        data_dir=data_dir,
+        users=[USER, OTHER],
+        mail_from="ntm@example.org",
+        base_url="https://ntm.example.org",
+    )
+    values.update(kwargs)
+    return Settings(**values)
+
+
+def bearer(data_dir, email_address=USER):
+    token = auth.token_for(auth.load_secret(data_dir), email_address)
+    return {"Authorization": f"Bearer {token}"}
+
+
+def fake_sendmail(tmp_path):
+    """Ein sendmail-Ersatz: Argumente und Mail landen in Dateien."""
+    outbox = tmp_path / "outbox"
+    outbox.mkdir()
+    script = tmp_path / "sendmail"
+    script.write_text(
+        f'#!/bin/sh\necho "$@" > "{outbox}/$$.args"\ncat > "{outbox}/$$.eml"\n'
+    )
+    script.chmod(0o755)
+    return script, outbox
+
+
+def sent_mails(outbox):
+    return [
+        email.message_from_bytes(path.read_bytes(), policy=email.policy.default)
+        for path in sorted(outbox.glob("*.eml"))
+    ]
 
 
 @pytest.fixture
 def client(tmp_path):
-    app = create_app(Settings(data_dir=tmp_path, password=PASSWORD))
+    app = create_app(make_settings(tmp_path))
     with TestClient(app) as client:
-        client.headers.update({"Authorization": f"Bearer {session_token(PASSWORD)}"})
+        client.headers.update(bearer(tmp_path))
         yield client
 
 
 @pytest.fixture
 def open_client(tmp_path):
-    """Ohne konfiguriertes Passwort ist die App offen (lokales Arbeiten)."""
-    app = create_app(Settings(data_dir=tmp_path, password=""))
+    """Ohne konfigurierte Nutzerliste ist die App offen (lokales Arbeiten)."""
+    app = create_app(Settings(data_dir=tmp_path))
     with TestClient(app) as client:
         yield client
 
@@ -38,29 +78,86 @@ def create(client, **kwargs):
 
 
 def test_ohne_token_kein_zugriff(tmp_path):
-    app = create_app(Settings(data_dir=tmp_path, password=PASSWORD))
+    app = create_app(make_settings(tmp_path))
     with TestClient(app) as anonymous:
         assert anonymous.get("/api/search").status_code == 401
         assert anonymous.get("/api/meta").status_code == 401
         assert anonymous.post("/api/entries", json={"title": "x"}).status_code == 401
 
 
-def test_login_liefert_token(tmp_path):
-    app = create_app(Settings(data_dir=tmp_path, password=PASSWORD))
+def test_login_verschickt_magic_link(tmp_path):
+    script, outbox = fake_sendmail(tmp_path)
+    data_dir = tmp_path / "data"
+    app = create_app(make_settings(data_dir, sendmail=str(script)))
     with TestClient(app) as anonymous:
         assert anonymous.get("/api/auth").json() == {"required": True}
-        assert anonymous.post("/api/login", json={"password": "falsch"}).status_code == 401
-        response = anonymous.post("/api/login", json={"password": PASSWORD})
-        assert response.status_code == 200
-        token = response.json()["token"]
-        assert token == session_token(PASSWORD)
-        anonymous.headers.update({"Authorization": f"Bearer {token}"})
-        assert anonymous.get("/api/search").status_code == 200
+        # Groß-/Kleinschreibung und Leerraum sind egal.
+        response = anonymous.post("/api/login", json={"email": " Anna@Example.org "})
+        assert response.json() == {"sent": True}
+        (args,) = outbox.glob("*.args")
+        assert args.read_text().strip() == USER
+        (message,) = sent_mails(outbox)
+        assert message["To"] == USER
+        assert message["From"] == "ntm@example.org"
+        link = re.search(r"https://ntm\.example\.org/#login=(\S+)", message.get_content())
+        assert link, message.get_content()
+        anonymous.headers.update({"Authorization": f"Bearer {link.group(1)}"})
+        meta = anonymous.get("/api/meta")
+        assert meta.status_code == 200
+        assert meta.json()["user"] == USER
 
 
-def test_ohne_passwort_ist_die_app_offen(open_client):
+def test_unbekannte_adresse_gleiche_antwort_keine_mail(tmp_path):
+    script, outbox = fake_sendmail(tmp_path)
+    app = create_app(make_settings(tmp_path / "data", sendmail=str(script)))
+    with TestClient(app) as anonymous:
+        response = anonymous.post("/api/login", json={"email": "wer@anders.example"})
+        assert response.json() == {"sent": True}  # verrät die Liste nicht
+        assert sent_mails(outbox) == []
+
+
+def test_mail_cooldown(tmp_path):
+    script, outbox = fake_sendmail(tmp_path)
+    app = create_app(make_settings(tmp_path / "data", sendmail=str(script)))
+    with TestClient(app) as anonymous:
+        for _ in range(3):
+            anonymous.post("/api/login", json={"email": USER})
+        assert len(sent_mails(outbox)) == 1
+
+
+def test_kaputtes_token_ist_401(tmp_path):
+    app = create_app(make_settings(tmp_path))
+    with TestClient(app) as anonymous:
+        for token in ["quatsch", "cXVhdHNjaA.abc", ""]:
+            anonymous.headers.update({"Authorization": f"Bearer {token}"})
+            assert anonymous.get("/api/meta").status_code == 401
+
+
+def test_entfernte_nutzerin_ist_abgemeldet(tmp_path):
+    headers = bearer(tmp_path)
+    app = create_app(make_settings(tmp_path, users=[OTHER]))
+    with TestClient(app) as client:
+        assert client.get("/api/meta", headers=headers).status_code == 401
+
+
+def test_ohne_nutzerliste_ist_die_app_offen(open_client):
     assert open_client.get("/api/auth").json() == {"required": False}
     assert open_client.get("/api/search").status_code == 200
+    assert open_client.get("/api/meta").json()["user"] is None
+    assert open_client.post("/api/login", json={"email": "x@y"}).json() == {"sent": False}
+
+
+def test_nutzerinnen_sind_getrennt(tmp_path):
+    app = create_app(make_settings(tmp_path))
+    with TestClient(app) as client:
+        client.headers.update(bearer(tmp_path, USER))
+        create(client, title="Annas Eintrag")
+        assert client.get("/api/meta").json()["entries"] == 1
+
+        client.headers.update(bearer(tmp_path, OTHER))
+        assert client.get("/api/meta").json()["user"] == OTHER
+        assert client.get("/api/meta").json()["entries"] == 0
+        assert client.get("/api/search").json()["total"] == 0
 
 
 # -- Einträge ----------------------------------------------------------

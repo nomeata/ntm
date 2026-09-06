@@ -41,6 +41,29 @@ def valid_id(entry_id: str) -> bool:
     return bool(ID_PATTERN.match(entry_id))
 
 
+def migrate_legacy(data_dir: Path, first_user: str) -> int:
+    """Altbestand aus der Ein-Benutzer-Zeit der ersten Nutzerin zuweisen.
+
+    Liegen JSON-Dateien direkt im Datenverzeichnis und gibt es noch kein
+    Verzeichnis für die erste Adresse der Liste, wandern sie dorthin.
+    Existiert ihr Verzeichnis schon, bleibt alles unangetastet.
+    """
+    data_dir = Path(data_dir)
+    target = data_dir / first_user
+    if target.exists():
+        return 0
+    files = sorted(
+        item for item in data_dir.glob("*.json") if item.is_file()
+    )
+    if not files:
+        return 0
+    target.mkdir(parents=True)
+    for item in files:
+        item.rename(target / item.name)
+    log.info("%d Einträge der Nutzerin %s zugewiesen", len(files), first_user)
+    return len(files)
+
+
 class Store:
     def __init__(self, data_dir: Path) -> None:
         self.data_dir = Path(data_dir)

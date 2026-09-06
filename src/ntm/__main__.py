@@ -17,9 +17,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--data-dir", type=Path, help="Verzeichnis der JSON-Dateien")
     parser.add_argument("--host")
     parser.add_argument("--port", type=int)
-    parser.add_argument(
-        "--password-file", type=Path, help="Datei mit dem Passwort (eine Zeile)"
-    )
     return parser.parse_args(argv)
 
 
@@ -33,13 +30,14 @@ def main(argv: list[str] | None = None) -> None:
         settings.host = args.host
     if args.port:
         settings.port = args.port
-    if args.password_file:
-        settings.password = args.password_file.read_text(encoding="utf-8").strip()
 
     if not settings.auth_required:
         logging.warning(
-            "Kein Passwort gesetzt (NTM_PASSWORD / NTM_PASSWORD_FILE) – "
-            "die App ist ungeschützt."
+            "Keine Nutzerliste gesetzt (NTM_USERS) – die App ist ungeschützt."
+        )
+    elif not settings.mail_from:
+        logging.warning(
+            "NTM_MAIL_FROM ist leer – Login-Mails kommen ohne Absender."
         )
     logging.info("Datenverzeichnis: %s", settings.data_dir.resolve())
     uvicorn.run(create_app(settings), host=settings.host, port=settings.port)
