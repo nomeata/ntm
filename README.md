@@ -210,6 +210,12 @@ Ende immer auch das gerade Getippte als neues Schlagwort an, damit sichtbar
 ist, was `Enter` tun wird. `Esc` schließt die Liste, danach übernimmt `Enter`
 den Text wörtlich.
 
+Das Schlagwortfeld bedient sich wie *ein* Textfeld mit Komma-getrennten
+Werten: die Pfeiltasten laufen über die Pillen hinweg, wobei sich die gerade
+bearbeitete in Text auflöst; `Backspace` am Anfang bzw. `Entf` am Ende
+„löschen das Komma“ und verschmelzen mit der Nachbar-Pille; ein Klick auf
+eine Pille macht sie editierbar.
+
 **Suchen** – zuerst die Schlagwortfilter (beliebig viele, kombinierbar) und der
 Alterswert, darunter die Volltextsuche über Titel und Beschreibung: mehrere
 Wörter sind UND-verknüpft, `"in Anführungszeichen"` bleibt zusammen, Umlaute

@@ -205,9 +205,13 @@ key(filterTagInput, "Enter");
 await wait(220);
 check("Tag wird zum Chip", $(".searchbar .chip-label") && $(".searchbar .chip-label").textContent === "Sprache/Wortschatz");
 check("Tag-Filter wirkt", $$("a.result").length === 1, `(${$$("a.result").length})`);
+// Backspace „löscht das Komma“: die Pille wird wieder editierbarer Text
+filterTagInput.setSelectionRange(0, 0);
 key(filterTagInput, "Backspace");
 await wait(220);
-check("Backspace entfernt den Chip", !$(".searchbar .chip"));
+check("Backspace löst den Chip in Text auf", !$(".searchbar .chip") && filterTagInput.value === "Sprache/Wortschatz", filterTagInput.value);
+type(filterTagInput, "");
+await wait(220);
 
 // Tastenkürzel, obwohl der Fokus in einem Textfeld steht
 $("input.q").focus();
@@ -283,6 +287,50 @@ for (const label of ["Sprache/Wortschatz", "Mit Eltern"]) {
 await wait(60);
 check("Chips wieder entfernt", $$(".entry-form .chip-label").length === 2, `(${$$(".entry-form .chip-label").length})`);
 check("Kommas zwischen den Pillen", $$(".entry-form .chip-sep").length === 2 && $$(".entry-form .chip-sep").every((n) => n.textContent === ","));
+
+// Wie ein Textfeld: ← löst die Pille davor in editierbaren Text auf
+const chipLabels = () => $$(".entry-form .chip-label").map((n) => n.textContent);
+tagInput.setSelectionRange(0, 0);
+key(tagInput, "ArrowLeft");
+await wait(220);
+check("Pfeil links löst die letzte Pille auf", tagInput.value === "Format/Bewegung" && chipLabels().length === 1, tagInput.value);
+tagInput.setSelectionRange(0, 0);
+key(tagInput, "ArrowLeft");
+await wait(220);
+check(
+  "Pfeil links wandert weiter nach vorn",
+  tagInput.value === "Sprache/Grammatik/Kasus" && chipLabels()[0] === "Format/Bewegung",
+  `${tagInput.value} | ${chipLabels()}`,
+);
+check("Eingabefeld steht jetzt vor der Pille", $(".entry-form .tagfield").firstElementChild.classList.contains("combo"));
+check("Bearbeiteter Wert ohne Pille, schmal", tagInput.classList.contains("inline"));
+
+// Mittendrin bearbeiten und wieder bestätigen: Reihenfolge bleibt
+type(tagInput, "Sprache/Grammatik/Fälle");
+await wait(200);
+key(tagInput, "Escape");
+key(tagInput, "Enter");
+await wait(120);
+check("Bearbeitet an alter Stelle", chipLabels().join("|") === "Sprache/Grammatik/Fälle|Format/Bewegung", chipLabels().join("|"));
+
+// → löst die Pille rechts vom Eingabefeld auf, Cursor an den Anfang
+key(tagInput, "ArrowRight");
+await wait(220);
+check("Pfeil rechts löst die nächste Pille auf", tagInput.value === "Format/Bewegung" && tagInput.selectionStart === 0, tagInput.value);
+key(tagInput, "Escape");
+key(tagInput, "Enter");
+await wait(120);
+
+// Klick auf eine Pille macht sie editierbar
+$$(".entry-form .chip").find((c) => c.querySelector(".chip-label").textContent === "Sprache/Grammatik/Fälle").click();
+await wait(220);
+check("Klick auf die Pille öffnet sie zum Bearbeiten", tagInput.value === "Sprache/Grammatik/Fälle", tagInput.value);
+type(tagInput, "Sprache/Grammatik/Kasus");
+await wait(200);
+key(tagInput, "Escape");
+key(tagInput, "Enter");
+await wait(120);
+check("Zurückbenannt, Reihenfolge unverändert", chipLabels().join("|") === "Sprache/Grammatik/Kasus|Format/Bewegung", chipLabels().join("|"));
 
 // Leeres Tag-Feld: Enter geht weiter
 type(tagInput, "");

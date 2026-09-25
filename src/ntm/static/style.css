@@ -237,6 +237,13 @@ textarea {
   background: transparent;
 }
 
+/* Mitten in der Aufzählung (beim Bearbeiten einer Pille) nur so breit
+   wie der Inhalt; die Breite setzt sizeInput() in ch. */
+.tagfield .tag-input.inline {
+  flex: 0 1 auto;
+  min-width: 4ch;
+}
+
 .tagfield .tag-input:focus-visible {
   outline: none;
 }
@@ -247,12 +254,6 @@ textarea {
   display: contents;
 }
 
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-}
-
 .chip {
   display: inline-flex;
   align-items: center;
@@ -261,6 +262,7 @@ textarea {
   background: var(--accent-soft);
   border-radius: 999px;
   font-size: 0.85rem;
+  cursor: text; /* klickbar zum Bearbeiten, wie Text in einem Textfeld */
 }
 
 .chip-sep {

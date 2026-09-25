@@ -282,10 +282,21 @@ function normalizeTagText(raw) {
     .join("/");
 }
 
-/** Chips + Eingabefeld mit Typeahead. Gibt {root, input, values, set} zurück. */
+/**
+ * Chips + Eingabefeld mit Typeahead. Gibt {root, input, values, set, flush}
+ * zurück.
+ *
+ * Bedient sich wie *ein* Textfeld mit Komma-getrennten Werten: das
+ * Eingabefeld sitzt an einer beweglichen Stelle der Aufzählung (editIndex).
+ * Läuft der Cursor über den Feldrand hinaus, löst sich die Nachbar-Pille in
+ * editierbaren Text auf; Backspace am Anfang bzw. Entf am Ende „löschen das
+ * Komma“ und verschmelzen mit der Nachbar-Pille; ein Klick auf eine Pille
+ * macht sie editierbar. Nur der gerade bearbeitete Wert steht ohne Pille da.
+ */
 function createTagField({ values = [], onChange, placeholder = "Schlagwort …" }) {
   let tags = [...values];
-  const chips = h("div", { class: "chips" });
+  let editIndex = tags.length;
+
   // enterkeyhint, damit die Bildschirmtastatur eine Enter-Taste anbietet –
   // sonst zeigt sie „weiter“, das gar kein Tastaturereignis auslöst.
   const input = h("input", {
@@ -295,30 +306,65 @@ function createTagField({ values = [], onChange, placeholder = "Schlagwort …" 
     enterkeyhint: "enter",
   });
   const combo = h("div", { class: "combo" }, input);
-  const root = h("div", { class: "tagfield" }, chips, combo);
+  const root = h(
+    "div",
+    {
+      class: "tagfield",
+      // Klick neben die Pillen fokussiert wie bei einem Textfeld die Eingabe.
+      onclick: (event) => {
+        if (event.target === root) input.focus();
+      },
+    },
+    combo,
+  );
+
+  const sizeInput = () => {
+    // Mitten in der Aufzählung schmiegt sich das Feld an seinen Inhalt,
+    // am Ende füllt es wie gehabt die restliche Breite.
+    if (editIndex < tags.length) {
+      input.classList.add("inline");
+      input.style.width = `${Math.max(4, input.value.length + 1)}ch`;
+      input.placeholder = "";
+    } else {
+      input.classList.remove("inline");
+      input.style.width = "";
+      input.placeholder = placeholder;
+    }
+  };
 
   const drawChips = () => {
-    clear(chips);
-    tags.forEach((tag, index) => {
-      chips.append(
-        h(
-          "span",
-          { class: "chip" },
-          h("span", { class: "chip-label", text: tag }),
-          h("button", {
-            type: "button",
-            class: "chip-remove",
-            tabIndex: -1,
-            title: "Entfernen",
-            text: "×",
-            onclick: () => remove(index),
-          }),
-        ),
-        // Das Komma nach jeder Pille zeigt nebenbei, dass Kommas beim
-        // Tippen die Schlagworte trennen.
-        h("span", { class: "chip-sep", text: "," }),
+    for (const node of [...root.children]) if (node !== combo) node.remove();
+    // Das Komma nach jeder Pille zeigt nebenbei, dass Kommas beim Tippen
+    // die Schlagworte trennen.
+    const sep = () => h("span", { class: "chip-sep", text: "," });
+    const chip = (tag, index) =>
+      h(
+        "span",
+        { class: "chip", title: "Klicken zum Bearbeiten", onclick: () => editAt(index) },
+        h("span", { class: "chip-label", text: tag }),
+        h("button", {
+          type: "button",
+          class: "chip-remove",
+          tabIndex: -1,
+          title: "Entfernen",
+          text: "×",
+          onclick: (event) => {
+            event.stopPropagation(); // nicht zugleich zum Bearbeiten öffnen
+            remove(index);
+          },
+        }),
       );
+    tags.forEach((tag, index) => {
+      if (index < editIndex) {
+        root.insertBefore(chip(tag, index), combo);
+        root.insertBefore(sep(), combo);
+      } else {
+        if (index === editIndex) root.append(sep());
+        root.append(chip(tag, index));
+        if (index < tags.length - 1) root.append(sep());
+      }
     });
+    sizeInput();
   };
 
   const changed = () => {
@@ -330,15 +376,53 @@ function createTagField({ values = [], onChange, placeholder = "Schlagwort …" 
     const value = normalizeTagText(tag);
     if (!value) return false;
     if (tags.some((existing) => existing.toLowerCase() === value.toLowerCase())) return false;
-    tags.push(value);
+    tags.splice(editIndex, 0, value);
+    editIndex += 1;
     changed();
     return true;
   };
 
   const remove = (index) => {
     tags.splice(index, 1);
+    if (index < editIndex) editIndex -= 1;
     changed();
     input.focus();
+  };
+
+  const afterMove = (position) => {
+    changed();
+    input.focus();
+    input.setSelectionRange(position, position);
+    typeahead.reload();
+  };
+
+  /** Löst die Pille `index` in editierbaren Text im Eingabefeld auf. */
+  const editAt = (index, cursor = "end") => {
+    if (input.value.trim()) {
+      const before = editIndex;
+      if (add(input.value) && before <= index) index += 1;
+      input.value = "";
+    }
+    const [value] = tags.splice(index, 1);
+    editIndex = index;
+    input.value = value;
+    afterMove(cursor === "start" ? 0 : value.length);
+  };
+
+  /** Backspace am Feldanfang: „das Komma löschen“, Pille davor anfügen. */
+  const mergePrevious = () => {
+    const [value] = tags.splice(editIndex - 1, 1);
+    editIndex -= 1;
+    input.value = value + input.value;
+    afterMove(value.length);
+  };
+
+  /** Entf am Feldende: mit der Pille dahinter verschmelzen. */
+  const mergeNext = () => {
+    const [value] = tags.splice(editIndex, 1);
+    const position = input.value.length;
+    input.value = input.value + value;
+    afterMove(position);
   };
 
   const typeahead = attachTypeahead(input, {
@@ -355,15 +439,22 @@ function createTagField({ values = [], onChange, placeholder = "Schlagwort …" 
     onPick: (item) => {
       add(item.value);
       input.value = "";
+      sizeInput();
       typeahead.reload();
     },
   });
+
+  const caretAtStart = () => input.selectionStart === 0 && input.selectionEnd === 0;
+  const caretAtEnd = () =>
+    input.selectionStart === input.value.length && input.selectionEnd === input.value.length;
+  const plain = (event) => !event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey;
 
   input.addEventListener("keydown", (event) => {
     if (event.key === "Enter" || event.key === ",") {
       if (input.value.trim()) {
         add(input.value);
         input.value = "";
+        sizeInput();
         event.preventDefault();
         event.stopPropagation(); // Fokus bleibt im Schlagwortfeld
       }
@@ -372,22 +463,39 @@ function createTagField({ values = [], onChange, placeholder = "Schlagwort …" 
     if (event.key === "Tab" && !event.shiftKey && input.value.trim()) {
       add(input.value);
       input.value = "";
+      sizeInput();
       return; // Fokus darf weiterwandern
     }
-    if (event.key === "Backspace" && !input.value && tags.length) {
-      tags.pop();
-      changed();
+    if (event.key === "ArrowLeft" && plain(event) && editIndex > 0 && caretAtStart()) {
       event.preventDefault();
+      editAt(editIndex - 1, "end");
+      return;
+    }
+    if (event.key === "ArrowRight" && plain(event) && editIndex < tags.length && caretAtEnd()) {
+      event.preventDefault();
+      editAt(editIndex, "start");
+      return;
+    }
+    if (event.key === "Backspace" && plain(event) && editIndex > 0 && caretAtStart()) {
+      event.preventDefault();
+      mergePrevious();
+      return;
+    }
+    if (event.key === "Delete" && plain(event) && editIndex < tags.length && caretAtEnd()) {
+      event.preventDefault();
+      mergeNext();
     }
   });
 
   // Bildschirmtastaturen melden Kommas oft nicht als keydown – landet doch
   // eines im Feld, wird alles davor übernommen.
   input.addEventListener("input", () => {
-    if (!input.value.includes(",")) return;
-    const parts = input.value.split(",");
-    input.value = parts.pop();
-    for (const part of parts) add(part);
+    if (input.value.includes(",")) {
+      const parts = input.value.split(",");
+      input.value = parts.pop();
+      for (const part of parts) add(part);
+    }
+    sizeInput();
   });
 
   drawChips();
@@ -399,14 +507,18 @@ function createTagField({ values = [], onChange, placeholder = "Schlagwort …" 
     },
     set(next) {
       tags = [...next];
+      editIndex = tags.length;
       drawChips();
     },
     /** Noch getippten, unbestätigten Text als Schlagwort übernehmen. */
     flush() {
-      if (!input.value.trim()) return;
-      add(input.value);
-      input.value = "";
-      typeahead.close();
+      if (input.value.trim()) {
+        add(input.value);
+        input.value = "";
+        typeahead.close();
+      }
+      editIndex = tags.length;
+      drawChips();
     },
   };
 }
@@ -1155,6 +1267,7 @@ const SHORTCUTS = [
   ["e", "Eintrag bearbeiten (in der Detailansicht)"],
   ["Entf", "Eintrag löschen (in der Detailansicht)"],
   ["Enter , ", "Schlagwort übernehmen (Vorschlag oder Getipptes)"],
+  ["← →", "Wie im Textfeld über die Schlagwort-Pillen laufen und sie bearbeiten"],
   ["Tab", "Nächstes Feld, übernimmt dabei den Vorschlag"],
   ["Strg + s", "Speichern"],
   ["Strg + Enter", "Speichern und gleich den nächsten Eintrag anlegen"],
