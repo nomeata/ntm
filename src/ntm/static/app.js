@@ -166,6 +166,16 @@ function attachTypeahead(input, { fetchItems, onPick, openOnFocus = true }) {
           {
             class: `suggest-item${index === active ? " active" : ""}`,
             role: "option",
+            // pointerdown statt click: es feuert vor dem blur des
+            // Eingabefelds – und anders als das nachsynthetisierte mousedown
+            // auch dann zuverlässig, wenn auf dem Handy gleichzeitig die
+            // Bildschirmtastatur zuklappt und das Layout verschiebt.
+            // preventDefault unterdrückt die Maus-Kompatibilitätsevents,
+            // mousedown bleibt als Fallback ohne Pointer Events (jsdom).
+            onpointerdown: (event) => {
+              event.preventDefault();
+              pick(item);
+            },
             onmousedown: (event) => {
               event.preventDefault();
               pick(item);
@@ -276,7 +286,14 @@ function normalizeTagText(raw) {
 function createTagField({ values = [], onChange, placeholder = "Schlagwort …" }) {
   let tags = [...values];
   const chips = h("div", { class: "chips" });
-  const input = h("input", { type: "text", placeholder, class: "tag-input" });
+  // enterkeyhint, damit die Bildschirmtastatur eine Enter-Taste anbietet –
+  // sonst zeigt sie „weiter“, das gar kein Tastaturereignis auslöst.
+  const input = h("input", {
+    type: "text",
+    placeholder,
+    class: "tag-input",
+    enterkeyhint: "enter",
+  });
   const combo = h("div", { class: "combo" }, input);
   const root = h("div", { class: "tagfield" }, chips, combo);
 
@@ -361,6 +378,15 @@ function createTagField({ values = [], onChange, placeholder = "Schlagwort …" 
     }
   });
 
+  // Bildschirmtastaturen melden Kommas oft nicht als keydown – landet doch
+  // eines im Feld, wird alles davor übernommen.
+  input.addEventListener("input", () => {
+    if (!input.value.includes(",")) return;
+    const parts = input.value.split(",");
+    input.value = parts.pop();
+    for (const part of parts) add(part);
+  });
+
   drawChips();
   return {
     root,
@@ -371,6 +397,13 @@ function createTagField({ values = [], onChange, placeholder = "Schlagwort …" 
     set(next) {
       tags = [...next];
       drawChips();
+    },
+    /** Noch getippten, unbestätigten Text als Schlagwort übernehmen. */
+    flush() {
+      if (!input.value.trim()) return;
+      add(input.value);
+      input.value = "";
+      typeahead.close();
     },
   };
 }
@@ -946,6 +979,10 @@ async function renderForm(id) {
 
   async function save(andNew = false) {
     if (saving) return;
+    // Was im Schlagwortfeld getippt, aber nie bestätigt wurde, soll beim
+    // Speichern nicht stillschweigend verloren gehen (auf dem Handy leicht
+    // passiert, wenn die Tastatur kein brauchbares Enter anbietet).
+    tagField.flush();
     if (!title.value.trim()) {
       toast("Ohne Titel geht es nicht", "error");
       title.focus();

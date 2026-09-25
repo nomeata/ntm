@@ -257,6 +257,32 @@ key(tagInput, "Enter");
 await wait(120);
 check("Neues Schlagwort angelegt", $$(".entry-form .chip-label").map((n) => n.textContent).includes("Format/Bewegung"));
 
+// Tippen auf einen Vorschlag (Handy: pointerdown, lange vor blur/click)
+type(tagInput, "wortschatz");
+await wait(200);
+const suggestion = $$(".entry-form .suggest-item").find((n) => n.textContent.includes("Sprache/Wortschatz"));
+check("Vorschlag zum Antippen da", suggestion);
+if (suggestion) {
+  suggestion.dispatchEvent(new window.Event("pointerdown", { bubbles: true, cancelable: true }));
+  await wait(120);
+  check("Tippen übernimmt den Vorschlag", $$(".entry-form .chip-label").map((n) => n.textContent).includes("Sprache/Wortschatz"));
+  check("Feld ist danach leer", tagInput.value === "", tagInput.value);
+}
+
+// Komma aus der Bildschirmtastatur kommt oft nur als input-Ereignis an
+type(tagInput, "Mit Eltern,");
+await wait(120);
+check("Komma im Text übernimmt das Schlagwort", $$(".entry-form .chip-label").map((n) => n.textContent).includes("Mit Eltern"));
+check("Nach dem Komma ist das Feld leer", tagInput.value === "", tagInput.value);
+
+// Die zwei Probe-Chips wieder entfernen (übt zugleich den ×-Knopf)
+for (const label of ["Sprache/Wortschatz", "Mit Eltern"]) {
+  const chip = $$(".entry-form .chip").find((c) => c.querySelector(".chip-label").textContent === label);
+  chip.querySelector(".chip-remove").click();
+}
+await wait(60);
+check("Chips wieder entfernt", $$(".entry-form .chip-label").length === 2, `(${$$(".entry-form .chip-label").length})`);
+
 // Leeres Tag-Feld: Enter geht weiter
 type(tagInput, "");
 await wait(120);
@@ -287,15 +313,21 @@ ageTo.value = "Eltern";
 ageTo.dispatchEvent(new window.Event("change", { bubbles: true }));
 check("Altersbereich gesetzt", ageFrom.value === "9" && ageTo.value === "Eltern");
 
+// Getippt, aber nie bestätigt (Handy-Tastatur ohne brauchbares Enter):
+// das Speichern übernimmt den Text trotzdem.
+type(tagInput, "Format/Unbestätigt");
+await wait(200);
+
 // Speichern
 const before = db.size;
 key($(".entry-form"), "s", { ctrlKey: true });
 await wait(150);
 check("Eintrag gespeichert", db.size === before + 1, `(${db.size})`);
+check("Speichern übernimmt unbestätigtes Schlagwort", [...db.values()].some((e) => e.tags.includes("Format/Unbestätigt")));
 check("Fußzeile zählt mit", $("#foot").textContent.includes(`${db.size} Einträge`), $("#foot").textContent);
 const saved = [...db.values()].at(-1);
 check("Alle Felder übertragen",
-  saved.title === "Silbenteppich" && saved.tags.length === 2 && saved.book === "Sprachförderung konkret" &&
+  saved.title === "Silbenteppich" && saved.tags.length === 3 && saved.book === "Sprachförderung konkret" &&
   saved.location === "S. 7" && saved.age_from === "9" && saved.age_to === "Eltern",
   JSON.stringify(saved));
 check("Detailansicht nach dem Speichern", $(".detail-view"), window.location.hash);
