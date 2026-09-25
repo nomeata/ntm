@@ -282,6 +282,7 @@ for (const label of ["Sprache/Wortschatz", "Mit Eltern"]) {
 }
 await wait(60);
 check("Chips wieder entfernt", $$(".entry-form .chip-label").length === 2, `(${$$(".entry-form .chip-label").length})`);
+check("Kommas zwischen den Pillen", $$(".entry-form .chip-sep").length === 2 && $$(".entry-form .chip-sep").every((n) => n.textContent === ","));
 
 // Leeres Tag-Feld: Enter geht weiter
 type(tagInput, "");

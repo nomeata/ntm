@@ -314,6 +314,9 @@ function createTagField({ values = [], onChange, placeholder = "Schlagwort …" 
             onclick: () => remove(index),
           }),
         ),
+        // Das Komma nach jeder Pille zeigt nebenbei, dass Kommas beim
+        // Tippen die Schlagworte trennen.
+        h("span", { class: "chip-sep", text: "," }),
       );
     });
   };
