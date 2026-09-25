@@ -213,16 +213,23 @@ den Text wörtlich.
 **Suchen** – zuerst die Schlagwortfilter (beliebig viele, kombinierbar) und der
 Alterswert, darunter die Volltextsuche über Titel und Beschreibung: mehrere
 Wörter sind UND-verknüpft, `"in Anführungszeichen"` bleibt zusammen, Umlaute
-sind egal (`marchen`, `maerchen` und `Märchen` finden dasselbe). Die Liste lässt
-sich zwischen „nur Titel“ und „mit Angaben“ (Buch, Ort, Schlagworte)
-umschalten. Alle Filter stehen in der URL, der Zurück-Button funktioniert also
-auch auf dem Handy wie erwartet.
+sind egal (`marchen`, `maerchen` und `Märchen` finden dasselbe). Alle Filter
+stehen in der URL, der Zurück-Button funktioniert also auch auf dem Handy wie
+erwartet.
+
+Die Treffer lassen sich auf zwei Achsen umschalten: als **Liste oder Baum**
+und **nur Titel oder mit Angaben** (Buch, Ort, Schlagworte). Der Baum ordnet
+die Treffer unter ihren hierarchischen Schlagworten an (alphabetisch, Knoten
+zum Zuklappen, Klick auf einen Knoten filtert danach); ein Eintrag mit
+mehreren Schlagworten erscheint mehrfach, und was kein hierarchisches
+Schlagwort hat, steht unten unter „Ohne Einordnung“.
 
 **Tastenkürzel** – auf der Suchseite bekommt bewusst kein Feld automatisch den
 Fokus, damit die Buchstabenkürzel sofort greifen: `n` neuer Eintrag, `t`
-Schlagwortfilter, `/` Volltextsuche, `v` Ansicht, `?` Hilfe. Steht der Cursor
-doch in einem Feld, tun es dieselben Befehle mit Alt (`Alt+N`, `Alt+T`,
-`Alt+F`, `Alt+V`, `Alt+H`) – oder `Esc`, das den Fokus wieder freigibt.
+Schlagwortfilter, `/` Volltextsuche, `b` Liste/Baum, `v` Titel/Angaben, `?`
+Hilfe. Steht der Cursor doch in einem Feld, tun es dieselben Befehle mit Alt
+(`Alt+N`, `Alt+T`, `Alt+F`, `Alt+B`, `Alt+V`, `Alt+H`) – oder `Esc`, das den
+Fokus wieder freigibt.
 
 Ganz unten steht eine Fußzeile mit der Zahl der Einträge, der angemeldeten
 Nutzerin (samt Abmelden-Knopf) und der git-Revision

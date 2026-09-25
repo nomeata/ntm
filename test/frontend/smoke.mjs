@@ -350,6 +350,41 @@ await wait(200);
 check("Tag-Filter aus der URL", $(".searchbar .chip-label") && $(".searchbar .chip-label").textContent === "Sprache");
 check("Gefilterte Liste", $$("a.result").length === 2, `(${$$("a.result").length})`);
 
+// Baumansicht
+const doppeltId = seed({ title: "Doppelgänger", tags: ["Sprache/Grammatik", "Sprache/Wortschatz"] });
+window.location.hash = "#/";
+await wait(200);
+key(document.body, "b");
+await wait(80);
+check("b schaltet auf den Baum", $(".results").classList.contains("tree"));
+check("Umschalter zeigt den Zustand", $(".list-actions .layout").textContent === "Baum");
+const summaries = $$(".results.tree summary").map((n) => n.textContent.trim());
+check(
+  "Knoten folgen der Tag-Hierarchie",
+  ["Sprache", "Grammatik", "Kasus", "Wortschatz"].every((s) => summaries.includes(s)),
+  JSON.stringify(summaries),
+);
+check("Flaches Tag wird kein Knoten", !summaries.includes("Mit Eltern"), JSON.stringify(summaries));
+check(
+  "Eintrag mit zwei Tags erscheint doppelt",
+  $$(".results.tree .result-title").filter((n) => n.textContent === "Doppelgänger").length === 2,
+);
+check("Ohne Einordnung sammelt den Rest", summaries.includes("Ohne Einordnung") && $$(".results.tree details").some((d) => d.querySelector("summary").textContent.trim() === "Ohne Einordnung" && [...d.querySelectorAll(".result-title")].some((n) => n.textContent === "Elternbrief")));
+
+// Knoten-Link setzt den Tag-Filter
+const wortschatzLink = $$(".results.tree a.tree-tag").find((a) => a.textContent === "Wortschatz");
+check("Knoten sind Filter-Links", wortschatzLink);
+wortschatzLink.click();
+await wait(150);
+check("Klick auf den Knoten filtert", $(".searchbar .chip-label") && $(".searchbar .chip-label").textContent === "Sprache/Wortschatz");
+check("Baum zeigt nur noch die Treffer", $$(".results.tree .result-title").every((n) => ["Wortschatzkiste", "Doppelgänger"].includes(n.textContent)), $$(".results.tree .result-title").map((n) => n.textContent).join(","));
+
+// zurück zur Liste, aufräumen
+key(document.body, "b");
+await wait(80);
+check("b schaltet zurück zur Liste", !$(".results").classList.contains("tree") && !$(".results details"));
+db.delete(doppeltId);
+
 // Hilfe
 window.location.hash = "#/";
 await wait(150);

@@ -14,6 +14,7 @@
 
 const TOKEN_KEY = "ntm.token";
 const LISTVIEW_KEY = "ntm.listview";
+const LAYOUT_KEY = "ntm.layout";
 
 const app = document.getElementById("app");
 const foot = document.getElementById("foot");
@@ -440,8 +441,15 @@ function logout() {
 let searchView = null;
 
 function createSearchView() {
-  const state = { q: "", tags: [], age: "", mode: localStorage.getItem(LISTVIEW_KEY) || "detail" };
+  const state = {
+    q: "",
+    tags: [],
+    age: "",
+    mode: localStorage.getItem(LISTVIEW_KEY) || "detail",
+    layout: localStorage.getItem(LAYOUT_KEY) || "list",
+  };
   let controller = null;
+  let lastData = null;
 
   const q = h("input", {
     type: "search",
@@ -467,10 +475,17 @@ function createSearchView() {
     },
   });
 
+  const layoutButton = h("button", {
+    type: "button",
+    class: "btn ghost layout",
+    title: "Liste oder Schlagwort-Baum (b oder Alt+B)",
+    onclick: toggleLayout,
+  });
+
   const modeButton = h("button", {
     type: "button",
     class: "btn ghost mode",
-    title: "Ansicht umschalten (v oder Alt+V)",
+    title: "Nur Titel oder mit Angaben (v oder Alt+V)",
     onclick: toggleMode,
   });
 
@@ -521,7 +536,7 @@ function createSearchView() {
         h("div", { class: "combo grow" }, q),
       ),
     ),
-    h("div", { class: "status" }, count, h("div", { class: "list-actions" }, clearButton, modeButton)),
+    h("div", { class: "status" }, count, h("div", { class: "list-actions" }, clearButton, layoutButton, modeButton)),
     results,
   );
 
@@ -537,12 +552,21 @@ function createSearchView() {
   function toggleMode() {
     state.mode = state.mode === "compact" ? "detail" : "compact";
     localStorage.setItem(LISTVIEW_KEY, state.mode);
-    drawMode();
+    drawControls();
   }
 
-  function drawMode() {
+  function toggleLayout() {
+    state.layout = state.layout === "tree" ? "list" : "tree";
+    localStorage.setItem(LAYOUT_KEY, state.layout);
+    drawControls();
+    draw();
+  }
+
+  function drawControls() {
     results.classList.toggle("compact", state.mode === "compact");
+    results.classList.toggle("tree", state.layout === "tree");
     modeButton.textContent = state.mode === "compact" ? "Nur Titel" : "Mit Angaben";
+    layoutButton.textContent = state.layout === "tree" ? "Baum" : "Liste";
   }
 
   function params() {
@@ -593,39 +617,126 @@ function createSearchView() {
     if (next) next.focus();
   });
 
+  function resultItem(entry) {
+    return h(
+      "a",
+      { class: "result", href: `#/e/${entry.id}` },
+      h(
+        "div",
+        { class: "result-head" },
+        h("span", { class: "result-title", text: entry.title }),
+        h("span", { class: "result-age", text: entry.age_label }),
+      ),
+      h(
+        "div",
+        { class: "result-meta" },
+        entry.book ? h("span", { class: "meta-book", text: entry.book }) : null,
+        entry.book && entry.location ? h("span", { class: "meta-sep", text: "·" }) : null,
+        entry.location ? h("span", { class: "meta-location", text: entry.location }) : null,
+        ...entry.tags.map((tag) => h("span", { class: "tag", text: tag })),
+      ),
+    );
+  }
+
   function drawResults(data) {
+    lastData = data;
+    draw();
+  }
+
+  function draw() {
+    if (!lastData) return;
     clear(results);
-    if (!data.entries.length) {
+    if (!lastData.entries.length) {
       count.textContent = "Keine Treffer.";
       return;
     }
     count.textContent =
-      data.total === data.entries.length
-        ? `${data.total} ${data.total === 1 ? "Eintrag" : "Einträge"}`
-        : `${data.entries.length} von ${data.total} Einträgen`;
-    for (const entry of data.entries) {
-      results.append(
+      lastData.total === lastData.entries.length
+        ? `${lastData.total} ${lastData.total === 1 ? "Eintrag" : "Einträge"}`
+        : `${lastData.entries.length} von ${lastData.total} Einträgen`;
+    if (state.layout === "tree") drawTree(lastData.entries);
+    else for (const entry of lastData.entries) results.append(h("li", {}, resultItem(entry)));
+  }
+
+  /**
+   * Baumansicht: das Gerüst bilden die hierarchischen Schlagworte (mit "/")
+   * der Treffer.  Ein Eintrag hängt an jedem Knoten, dessen Pfad einem seiner
+   * Tags entspricht – gerne mehrfach.  Verglichen wird wie im Backend ohne
+   * Groß-/Kleinschreibung, angezeigt die zuerst gesehene Schreibweise.
+   * Treffer ohne Platz im Baum sammelt „Ohne Einordnung“ am Ende.
+   */
+  function drawTree(entries) {
+    const makeNode = (label) => ({ label, children: new Map(), entries: [] });
+    const top = new Map();
+    const nodeFor = (tag, create) => {
+      let map = top;
+      let node = null;
+      for (const segment of tag.split("/")) {
+        const key = segment.toLowerCase();
+        if (!map.has(key)) {
+          if (!create) return null;
+          map.set(key, makeNode(segment));
+        }
+        node = map.get(key);
+        map = node.children;
+      }
+      return node;
+    };
+    for (const entry of entries) {
+      for (const tag of entry.tags) if (tag.includes("/")) nodeFor(tag, true);
+    }
+    const rest = [];
+    for (const entry of entries) {
+      let placed = false;
+      for (const tag of entry.tags) {
+        const node = nodeFor(tag, false);
+        if (node) {
+          node.entries.push(entry);
+          placed = true;
+        }
+      }
+      if (!placed) rest.push(entry);
+    }
+    const sorted = (map) => [...map.values()].sort((a, b) => a.label.localeCompare(b.label, "de"));
+    const branch = (summaryContent, children) =>
+      h(
+        "li",
+        {},
         h(
-          "li",
-          {},
-          h(
-            "a",
-            { class: "result", href: `#/e/${entry.id}` },
-            h(
-              "div",
-              { class: "result-head" },
-              h("span", { class: "result-title", text: entry.title }),
-              h("span", { class: "result-age", text: entry.age_label }),
-            ),
-            h(
-              "div",
-              { class: "result-meta" },
-              entry.book ? h("span", { class: "meta-book", text: entry.book }) : null,
-              entry.book && entry.location ? h("span", { class: "meta-sep", text: "·" }) : null,
-              entry.location ? h("span", { class: "meta-location", text: entry.location }) : null,
-              ...entry.tags.map((tag) => h("span", { class: "tag", text: tag })),
-            ),
-          ),
+          "details",
+          { open: true },
+          h("summary", {}, summaryContent),
+          h("ol", { class: "tree-children" }, ...children),
+        ),
+      );
+    const renderNode = (node, path) =>
+      branch(
+        h("a", {
+          class: "tree-tag",
+          href: `#/?tag=${encodeURIComponent(path)}`,
+          title: "Nach diesem Schlagwort filtern",
+          text: node.label,
+          onclick: (event) => {
+            // preventDefault unterbindet neben der Navigation auch das
+            // Zuklappen des <details>; gefiltert wird über den Zustand.
+            event.preventDefault();
+            if (state.tags.includes(path)) return;
+            state.tags = [...state.tags, path];
+            tagField.set(state.tags);
+            commit();
+          },
+        }),
+        [
+          ...node.entries.map((entry) => h("li", {}, resultItem(entry))),
+          ...sorted(node.children).map((child) => renderNode(child, `${path}/${child.label}`)),
+        ],
+      );
+    for (const node of sorted(top)) results.append(renderNode(node, node.label));
+    if (rest.length) {
+      results.append(
+        branch(
+          h("span", { class: "tree-tag plain", text: "Ohne Einordnung" }),
+          rest.map((entry) => h("li", {}, resultItem(entry))),
         ),
       );
     }
@@ -659,6 +770,7 @@ function createSearchView() {
       if (field.select) field.select();
     },
     toggleMode,
+    toggleLayout,
     sync(search) {
       state.q = search.get("q") || "";
       state.tags = search.getAll("tag");
@@ -666,7 +778,7 @@ function createSearchView() {
       if (q.value !== state.q) q.value = state.q;
       tagField.set(state.tags);
       fillAges();
-      drawMode();
+      drawControls();
       refresh();
     },
   };
@@ -993,9 +1105,10 @@ const SHORTCUTS = [
   ["n", "Neuen Eintrag anlegen"],
   ["t", "Zum Schlagwortfilter"],
   ["/", "Zur Volltextsuche"],
-  ["v", "Listenansicht umschalten"],
+  ["b", "Liste oder Schlagwort-Baum"],
+  ["v", "Nur Titel oder mit Angaben"],
   ["?", "Diese Hilfe"],
-  ["Alt + n t / v h", "dieselben Befehle, auch während man in einem Feld tippt"],
+  ["Alt + n t / b v h", "dieselben Befehle, auch während man in einem Feld tippt"],
   ["Esc", "Fokus aus dem Feld nehmen, Vorschlagsliste schließen, zurück"],
   ["↑ ↓", "In der Trefferliste blättern"],
   ["Enter", "Eintrag öffnen; im Formular ins nächste Feld"],
@@ -1107,6 +1220,7 @@ const COMMANDS = {
   KeyN: () => go("/new"),
   KeyT: () => focusFilter("tag"),
   KeyF: () => focusFilter("q"),
+  KeyB: () => searchView && searchView.toggleLayout(),
   KeyV: () => searchView && searchView.toggleMode(),
   KeyH: () => showHelp(),
 };
@@ -1115,6 +1229,7 @@ const LETTER_COMMANDS = {
   n: COMMANDS.KeyN,
   t: COMMANDS.KeyT,
   "/": COMMANDS.KeyF,
+  b: COMMANDS.KeyB,
   v: COMMANDS.KeyV,
   "?": COMMANDS.KeyH,
 };
