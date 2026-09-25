@@ -1267,7 +1267,6 @@ const SHORTCUTS = [
   ["e", "Eintrag bearbeiten (in der Detailansicht)"],
   ["Entf", "Eintrag löschen (in der Detailansicht)"],
   ["Enter , ", "Schlagwort übernehmen (Vorschlag oder Getipptes)"],
-  ["← →", "Wie im Textfeld über die Schlagwort-Pillen laufen und sie bearbeiten"],
   ["Tab", "Nächstes Feld, übernimmt dabei den Vorschlag"],
   ["Strg + s", "Speichern"],
   ["Strg + Enter", "Speichern und gleich den nächsten Eintrag anlegen"],
